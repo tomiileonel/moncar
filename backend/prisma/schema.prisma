@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id       Int    @id @default(autoincrement())
+  name     String
+  email    String @unique
+  password String // bcrypt hash
+}
+
+model Vehicle {
+  id         Int      @id @default(autoincrement())
+  owner      String
+  phone      String
+  type       String
+  carname    String
+  model      String
+  km         String?
+  entry      String
+  exit       String?
+  problem    String   @db.Text
+  cost_labor String?
+  cost_parts String?
+  status     String   @default("Pendiente")
+  source     String   @default("client") // client or admin
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
