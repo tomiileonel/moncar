@@ -66,13 +66,3 @@ npx prisma db push
 # Compilar TypeScript e iniciar el servidor
 npm run build
 npm start
-
-2. Ejecución del Frontend
-Al ser Vanilla JS y HTML estático, no requiere un servidor de desarrollo complejo.
-
-Puedes abrir moncar-enhanced.html directamente en tu navegador.
-
-O utilizar un servidor local ligero como Live Server (VS Code Extension) o Python:
-
-Bash
-npx serve .
