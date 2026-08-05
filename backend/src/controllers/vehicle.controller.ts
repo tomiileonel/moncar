@@ -1,9 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
-import { PrismaClient, VehicleType, VehicleStatus, VehicleSource } from '@prisma/client';
+import { VehicleType, VehicleStatus, VehicleSource } from '@prisma/client';
 import { z } from 'zod';
 import type { AuthRequest } from '../middleware/auth.js';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma.js';
 
 // Prisma.Decimal.toJSON() delega en toString(), que recorta ceros finales
 // (15000.10 -> "15000.1"). Para montos monetarios fijamos 2 decimales acá,

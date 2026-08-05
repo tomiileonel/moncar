@@ -1,12 +1,11 @@
 import type { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 
 import { JWT_SECRET, ADMIN_REGISTER_SECRET } from '../config.js';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma.js';
+// Singleton importado de ../lib/prisma.js
 
 // Esquemas de Validación con Zod
 const normalizedEmailSchema = z.preprocess(
