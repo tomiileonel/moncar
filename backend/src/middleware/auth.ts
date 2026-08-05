@@ -1,10 +1,16 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key-for-moncar-123';
+import { JWT_SECRET } from '../config.js';
+
+export interface AdminPayload {
+    id: number;
+    email: string;
+    name: string;
+}
 
 export interface AuthRequest extends Request {
-    admin?: any;
+    admin?: AdminPayload;
 }
 
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction): void => {
@@ -21,7 +27,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
             res.status(403).json({ error: 'Token inválido o expirado' });
             return;
         }
-        req.admin = user;
+        req.admin = user as AdminPayload;
         next();
     });
 };

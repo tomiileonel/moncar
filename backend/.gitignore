@@ -1,5 +1,25 @@
-node_modules
-# Keep environment variables out of version control
-.env
+node_modules/
 
-/generated/prisma
+# Build output
+dist/
+
+# TypeScript compilation artifacts in src/ only
+# (init-db.js in backend root is a legitimate source file)
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map
+
+# Prisma generated config artifacts (keep .ts source only)
+prisma.config.js
+prisma.config.js.map
+prisma.config.d.ts
+prisma.config.d.ts.map
+
+# Logs and debug output
+*.log
+build_output.txt
+runtime_error.txt
+
+# Environment
+.env

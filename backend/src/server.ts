@@ -1,31 +1,51 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
+import { PORT, CORS_ORIGIN } from './config.js';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
-const port = process.env.PORT || 3000;
 
-app.use(cors());
+// Security headers + CSP
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+    }
+  }
+}));
+
+app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 
-import { ZodError } from 'zod';
-import type { Request, Response, NextFunction } from 'express';
+// Serve frontend from backend/public/
+app.use(express.static(path.join(__dirname, '../public')));
 
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 
-// Middleware de Manejo de Errores Global
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-    if (err instanceof ZodError) {
-        res.status(400).json({ error: 'Error de validación de datos', details: (err as any).errors });
-        return;
-    }
-
-    console.error('Error no capturado:', err);
-    res.status(500).json({ error: 'Algo salió mal en el servidor' });
+app.listen(PORT, () => {
+  console.log(`[Server]: Moncar listening at http://localhost:${PORT}`);
 });
 
-app.listen(port, () => {
-    console.log(`[Server]: Moncar APIs listening at http://localhost:${port}`);
-});
+// Graceful shutdown
+const shutdown = async () => {
+  console.log('Shutting down...');
+  await prisma.$disconnect();
+  process.exit(0);
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

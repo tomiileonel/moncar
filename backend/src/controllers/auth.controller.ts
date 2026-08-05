@@ -4,14 +4,16 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 
+import { JWT_SECRET, ADMIN_REGISTER_SECRET } from '../config.js';
+
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key-for-moncar-123';
 
 // Esquemas de Validación con Zod
 const registerSchema = z.object({
     name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
     email: z.string().email("El correo no tiene un formato válido"),
-    password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres")
+    password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+    adminSecret: z.string().min(1, "El secreto de administrador es obligatorio")
 });
 
 const loginSchema = z.object({
@@ -24,7 +26,13 @@ export const authController = {
     register: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             // Validación con Zod
-            const { name, email, password } = registerSchema.parse(req.body);
+            const { name, email, password, adminSecret } = registerSchema.parse(req.body);
+
+            // Verificar secreto de administrador
+            if (adminSecret !== ADMIN_REGISTER_SECRET) {
+                res.status(403).json({ error: 'Secreto de registro inválido' });
+                return;
+            }
 
             // Verificar si el admin ya existe
             const existingAdmin = await prisma.admin.findUnique({ where: { email } });
