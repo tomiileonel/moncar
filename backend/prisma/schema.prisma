@@ -7,28 +7,58 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum VehicleStatus {
+  PENDIENTE
+  EN_REPARACION
+  LISTO
+}
+
+enum VehicleSource {
+  CLIENT
+  ADMIN
+}
+
+enum VehicleType {
+  AUTO
+  CAMIONETA
+  CAMION
+}
+
+enum AdminRole {
+  OWNER
+  MECHANIC
+}
+
+/// Admin is intentionally immutable (no updatedAt). Password changes
+/// create an audit trail via application logs, not DB timestamps.
 model Admin {
-  id       Int    @id @default(autoincrement())
-  name     String
-  email    String @unique
-  password String // bcrypt hash
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  password  String    // bcrypt hash
+  role      AdminRole @default(MECHANIC)
+  createdAt DateTime  @default(now())
 }
 
 model Vehicle {
-  id         Int      @id @default(autoincrement())
+  id         Int           @id @default(autoincrement())
   owner      String
   phone      String
-  type       String
+  type       VehicleType   @default(AUTO)
   carname    String
-  model      String
-  km         String?
-  entry      String
-  exit       String?
-  problem    String   @db.Text
-  cost_labor String?
-  cost_parts String?
-  status     String   @default("Pendiente")
-  source     String   @default("client") // client or admin
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  year       Int?
+  km         Int?
+  entry      DateTime
+  exit       DateTime?
+  problem    String        @db.Text
+  cost_labor Decimal?      @db.Decimal(12, 2)
+  cost_parts Decimal?      @db.Decimal(12, 2)
+  status     VehicleStatus @default(PENDIENTE)
+  source     VehicleSource @default(CLIENT)
+  deleted    Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @default(now()) @updatedAt
+
+  @@index([deleted, status])
+  @@index([entry])
 }
