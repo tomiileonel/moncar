@@ -1,168 +1,194 @@
 import type { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, VehicleType, VehicleStatus, VehicleSource } from '@prisma/client';
 import { z } from 'zod';
 import type { AuthRequest } from '../middleware/auth.js';
 
 const prisma = new PrismaClient();
 
+// Reutilizamos los enums generados por Prisma como fuente única de verdad:
+// si el schema cambia, z.nativeEnum se actualiza solo en el próximo `prisma generate`.
+const vehicleTypeSchema = z.nativeEnum(VehicleType);
+const vehicleStatusSchema = z.nativeEnum(VehicleStatus);
+
+// Acepta "123", "" o undefined -> number | null. Nunca deja pasar un string a Prisma.
+const optionalIntFromString = z
+  .string()
+  .optional()
+  .nullable()
+  .transform((val) => {
+    if (!val || val.trim() === '') return null;
+    const parsed = Number.parseInt(val, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  });
+
+// Idem para Decimal(12,2) — Prisma acepta string para Decimal, pero validamos formato numérico.
+const optionalDecimalFromString = z
+  .string()
+  .optional()
+  .nullable()
+  .transform((val) => (val && val.trim() !== '' ? val : null))
+  .refine((val) => val === null || !Number.isNaN(Number(val)), {
+    message: 'Debe ser un valor numérico válido',
+  });
+
+// ISO date string -> Date. Acepta "2026-08-05" o ISO completo.
+const dateFromString = z
+  .string()
+  .min(1, 'La fecha es requerida')
+  .transform((val) => new Date(val))
+  .refine((date) => !Number.isNaN(date.getTime()), { message: 'Fecha inválida' });
+
+const optionalDateFromString = z
+  .string()
+  .optional()
+  .nullable()
+  .transform((val) => (val ? new Date(val) : null))
+  .refine((date) => date === null || !Number.isNaN(date.getTime()), { message: 'Fecha inválida' });
+
 const clientCreateSchema = z.object({
   owner: z.string().min(1, 'El propietario es requerido'),
   phone: z.string().regex(/^\d{7,15}$/, 'El teléfono debe tener entre 7 y 15 dígitos'),
-  type: z.string().min(1, 'El tipo es requerido'),
+  type: vehicleTypeSchema,
   carname: z.string().min(1, 'La marca es requerida'),
-  model: z.string().min(1, 'El modelo/año es requerido'),
-  km: z.string().optional().nullable(),
+  year: optionalIntFromString,
+  km: optionalIntFromString,
   problem: z.string().min(1, 'El problema es requerido'),
 });
 
 const adminCreateSchema = clientCreateSchema.extend({
-  entry: z.string().min(1).optional(),
-  exit: z.string().optional().nullable(),
-  cost_labor: z.string().optional().nullable(),
-  cost_parts: z.string().optional().nullable(),
-  status: z.string().optional(),
+  entry: optionalDateFromString,
+  exit: optionalDateFromString,
+  cost_labor: optionalDecimalFromString,
+  cost_parts: optionalDecimalFromString,
+  status: vehicleStatusSchema.optional(),
 });
 
-// Old schema used temporarily for update until Fase 3
-const vehicleSchema = z.object({
-    owner: z.string().min(1, "El propietario es requerido"),
-    phone: z.string().regex(/^\d{7,15}$/, "El teléfono debe tener entre 7 y 15 dígitos"),
-    type: z.string().min(1, "El tipo es requerido"),
-    carname: z.string().min(1, "La marca es requerida"),
-    model: z.string().min(1, "El año/modelo es requerido"),
-    km: z.string().optional().nullable(),
-    entry: z.string().min(1, "La fecha de ingreso es requerida"),
-    exit: z.string().optional().nullable(),
-    problem: z.string().min(1, "El problema es requerido"),
-    cost_labor: z.string().optional().nullable(),
-    cost_parts: z.string().optional().nullable(),
-    status: z.string().optional(),
-    source: z.string().optional()
+const updateSchema = z.object({
+  owner: z.string().min(1, 'El propietario es requerido'),
+  phone: z.string().regex(/^\d{7,15}$/, 'El teléfono debe tener entre 7 y 15 dígitos'),
+  type: vehicleTypeSchema,
+  carname: z.string().min(1, 'La marca es requerida'),
+  year: optionalIntFromString,
+  km: optionalIntFromString,
+  entry: dateFromString,
+  exit: optionalDateFromString,
+  problem: z.string().min(1, 'El problema es requerido'),
+  cost_labor: optionalDecimalFromString,
+  cost_parts: optionalDecimalFromString,
+  status: vehicleStatusSchema.optional(),
+  source: z.nativeEnum(VehicleSource).optional(),
 });
 
 export const vehicleController = {
-    // GET all vehicles
-    getAll: async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            const vehicles = await prisma.vehicle.findMany({
-                orderBy: { createdAt: 'desc' },
-            });
-            const formattedVehicles = vehicles.map((v: any) => ({
-                ...v,
-                id: v.id.toString()
-            }));
-            res.json(formattedVehicles);
-        } catch (error) {
-            next(error);
-        }
-    },
-
-    createClient: async (req: Request, res: Response, next: NextFunction) => {
-        try {
-            const data = clientCreateSchema.parse(req.body);
-            const vehicle = await prisma.vehicle.create({
-                data: {
-                    owner: data.owner,
-                    phone: data.phone,
-                    type: data.type,
-                    carname: data.carname,
-                    model: data.model,
-                    km: data.km || null,
-                    problem: data.problem,
-                    entry: new Date().toISOString().substring(0, 10),
-                    source: 'client',
-                    status: 'Pendiente',
-                },
-            });
-            res.status(201).json({
-                ...vehicle,
-                id: vehicle.id.toString()
-            });
-        } catch (error) {
-            next(error);
-        }
-    },
-
-    createAdmin: async (req: AuthRequest, res: Response, next: NextFunction) => {
-        try {
-            const data = adminCreateSchema.parse(req.body);
-            const vehicle = await prisma.vehicle.create({
-                data: {
-                    owner: data.owner,
-                    phone: data.phone,
-                    type: data.type,
-                    carname: data.carname,
-                    model: data.model,
-                    km: data.km || null,
-                    problem: data.problem,
-                    entry: data.entry || new Date().toISOString().substring(0, 10),
-                    exit: data.exit || null,
-                    cost_labor: data.cost_labor || null,
-                    cost_parts: data.cost_parts || null,
-                    source: 'admin',
-                    status: data.status || 'Pendiente',
-                },
-            });
-            res.status(201).json({
-                ...vehicle,
-                id: vehicle.id.toString()
-            });
-        } catch (error) {
-            next(error);
-        }
-    },
-
-    createCompat: async (req: AuthRequest, res: Response, next: NextFunction) => {
-        if (req.admin) {
-            return vehicleController.createAdmin(req, res, next);
-        }
-        return vehicleController.createClient(req as Request, res, next);
-    },
-
-    // PUT update vehicle
-    update: async (req: AuthRequest, res: Response, next: NextFunction) => {
-        try {
-            const { id } = req.params;
-            const validatedData = vehicleSchema.parse(req.body);
-
-            const updatedVehicle = await prisma.vehicle.update({
-                where: { id: parseInt(id as string) },
-                data: {
-                    owner: validatedData.owner,
-                    phone: validatedData.phone,
-                    type: validatedData.type,
-                    carname: validatedData.carname,
-                    model: validatedData.model,
-                    km: validatedData.km || null,
-                    entry: validatedData.entry,
-                    exit: validatedData.exit || null,
-                    problem: validatedData.problem,
-                    cost_labor: validatedData.cost_labor?.toString() || null,
-                    cost_parts: validatedData.cost_parts?.toString() || null,
-                    ...(validatedData.status ? { status: validatedData.status } : {}),
-                    ...(validatedData.source ? { source: validatedData.source } : {})
-                }
-            });
-
-            res.json({
-                ...updatedVehicle,
-                id: updatedVehicle.id.toString()
-            });
-        } catch (error) {
-            next(error);
-        }
-    },
-
-    // DELETE vehicle
-    delete: async (req: AuthRequest, res: Response, next: NextFunction) => {
-        try {
-            const { id } = req.params;
-            await prisma.vehicle.delete({
-                where: { id: parseInt(id as string) }
-            });
-            res.json({ message: 'Vehículo eliminado con éxito' });
-        } catch (error) {
-            next(error);
-        }
+  getAll: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const vehicles = await prisma.vehicle.findMany({
+        where: { deleted: false },
+        orderBy: { createdAt: 'desc' },
+      });
+      res.json(vehicles.map((v) => ({ ...v, id: v.id.toString() })));
+    } catch (error) {
+      next(error);
     }
+  },
+
+  createClient: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const data = clientCreateSchema.parse(req.body);
+      const vehicle = await prisma.vehicle.create({
+        data: {
+          owner: data.owner,
+          phone: data.phone,
+          type: data.type,
+          carname: data.carname,
+          year: data.year,
+          km: data.km,
+          problem: data.problem,
+          entry: new Date(),
+          source: VehicleSource.CLIENT,
+          status: VehicleStatus.PENDIENTE,
+        },
+      });
+      res.status(201).json({ ...vehicle, id: vehicle.id.toString() });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  createAdmin: async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const data = adminCreateSchema.parse(req.body);
+      const vehicle = await prisma.vehicle.create({
+        data: {
+          owner: data.owner,
+          phone: data.phone,
+          type: data.type,
+          carname: data.carname,
+          year: data.year,
+          km: data.km,
+          problem: data.problem,
+          entry: data.entry ?? new Date(),
+          exit: data.exit,
+          cost_labor: data.cost_labor,
+          cost_parts: data.cost_parts,
+          source: VehicleSource.ADMIN,
+          status: data.status ?? VehicleStatus.PENDIENTE,
+        },
+      });
+      res.status(201).json({ ...vehicle, id: vehicle.id.toString() });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  createCompat: async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    if (req.admin) {
+      return vehicleController.createAdmin(req, res, next);
+    }
+    return vehicleController.createClient(req as Request, res, next);
+  },
+
+  update: async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const data = updateSchema.parse(req.body);
+
+      const updatedVehicle = await prisma.vehicle.update({
+        where: { id: Number.parseInt(id as string, 10) },
+        data: {
+          owner: data.owner,
+          phone: data.phone,
+          type: data.type,
+          carname: data.carname,
+          year: data.year,
+          km: data.km,
+          entry: data.entry,
+          exit: data.exit,
+          problem: data.problem,
+          cost_labor: data.cost_labor,
+          cost_parts: data.cost_parts,
+          ...(data.status ? { status: data.status } : {}),
+          ...(data.source ? { source: data.source } : {}),
+        },
+      });
+
+      res.json({ ...updatedVehicle, id: updatedVehicle.id.toString() });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Soft-delete: preserva historial del taller en vez de borrar filas.
+  delete: async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      await prisma.vehicle.update({
+        where: { id: Number.parseInt(id as string, 10) },
+        data: { deleted: true },
+      });
+      res.json({ message: 'Vehículo eliminado con éxito' });
+    } catch (error) {
+      next(error);
+    }
+  },
 };
