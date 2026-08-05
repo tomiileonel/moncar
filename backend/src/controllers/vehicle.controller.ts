@@ -13,8 +13,8 @@ function serializeVehicle(v: VehicleRecord) {
   return {
     ...v,
     id: v.id.toString(),
-    cost_labor: v.cost_labor ? v.cost_labor.toFixed(2) : null,
-    cost_parts: v.cost_parts ? v.cost_parts.toFixed(2) : null,
+    cost_labor: v.cost_labor !== null ? v.cost_labor.toFixed(2) : null,
+    cost_parts: v.cost_parts !== null ? v.cost_parts.toFixed(2) : null,
   };
 }
 
