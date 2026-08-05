@@ -8,6 +8,7 @@ import vehicleRoutes from './routes/vehicle.routes.js';
 import { PORT, CORS_ORIGIN } from './config.js';
 import { PrismaClient } from '@prisma/client';
 import { globalRateLimiter } from './middleware/rate-limit.js';
+import { errorHandler } from './middleware/error-handler.js';
 
 const prisma = new PrismaClient();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -38,6 +39,9 @@ app.use(express.static(path.join(__dirname, '../public')));
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/vehicles', vehicleRoutes);
+
+// Global error handler — must be after all routes
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`[Server]: Moncar listening at http://localhost:${PORT}`);

@@ -5,6 +5,20 @@ import type { AuthRequest } from '../middleware/auth.js';
 
 const prisma = new PrismaClient();
 
+// Prisma.Decimal.toJSON() delega en toString(), que recorta ceros finales
+// (15000.10 -> "15000.1"). Para montos monetarios fijamos 2 decimales acá,
+// en el backend, en vez de depender de que cada consumidor formatee bien.
+type VehicleRecord = Awaited<ReturnType<typeof prisma.vehicle.create>>;
+
+function serializeVehicle(v: VehicleRecord) {
+  return {
+    ...v,
+    id: v.id.toString(),
+    cost_labor: v.cost_labor ? v.cost_labor.toFixed(2) : null,
+    cost_parts: v.cost_parts ? v.cost_parts.toFixed(2) : null,
+  };
+}
+
 // Reutilizamos los enums generados por Prisma como fuente única de verdad:
 // si el schema cambia, z.nativeEnum se actualiza solo en el próximo `prisma generate`.
 const vehicleTypeSchema = z.nativeEnum(VehicleType);
@@ -86,7 +100,7 @@ export const vehicleController = {
         where: { deleted: false },
         orderBy: { createdAt: 'desc' },
       });
-      res.json(vehicles.map((v) => ({ ...v, id: v.id.toString() })));
+      res.json(vehicles.map(serializeVehicle));
     } catch (error) {
       next(error);
     }
@@ -109,7 +123,7 @@ export const vehicleController = {
           status: VehicleStatus.PENDIENTE,
         },
       });
-      res.status(201).json({ ...vehicle, id: vehicle.id.toString() });
+      res.status(201).json(serializeVehicle(vehicle));
     } catch (error) {
       next(error);
     }
@@ -135,7 +149,7 @@ export const vehicleController = {
           status: data.status ?? VehicleStatus.PENDIENTE,
         },
       });
-      res.status(201).json({ ...vehicle, id: vehicle.id.toString() });
+      res.status(201).json(serializeVehicle(vehicle));
     } catch (error) {
       next(error);
     }
@@ -172,7 +186,7 @@ export const vehicleController = {
         },
       });
 
-      res.json({ ...updatedVehicle, id: updatedVehicle.id.toString() });
+      res.json(serializeVehicle(updatedVehicle));
     } catch (error) {
       next(error);
     }
