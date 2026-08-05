@@ -1,0 +1,24 @@
+import rateLimit from 'express-rate-limit';
+
+export const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 5,
+  message: { error: 'Demasiados intentos. Esperá 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const clientRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 10,
+  message: { error: 'Demasiados registros. Intentá más tarde.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export const globalRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});

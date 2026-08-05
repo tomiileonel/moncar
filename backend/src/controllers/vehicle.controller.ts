@@ -5,7 +5,25 @@ import type { AuthRequest } from '../middleware/auth.js';
 
 const prisma = new PrismaClient();
 
-// Esquema de Validación con Zod para vehículos
+const clientCreateSchema = z.object({
+  owner: z.string().min(1, 'El propietario es requerido'),
+  phone: z.string().regex(/^\d{7,15}$/, 'El teléfono debe tener entre 7 y 15 dígitos'),
+  type: z.string().min(1, 'El tipo es requerido'),
+  carname: z.string().min(1, 'La marca es requerida'),
+  model: z.string().min(1, 'El modelo/año es requerido'),
+  km: z.string().optional().nullable(),
+  problem: z.string().min(1, 'El problema es requerido'),
+});
+
+const adminCreateSchema = clientCreateSchema.extend({
+  entry: z.string().min(1).optional(),
+  exit: z.string().optional().nullable(),
+  cost_labor: z.string().optional().nullable(),
+  cost_parts: z.string().optional().nullable(),
+  status: z.string().optional(),
+});
+
+// Old schema used temporarily for update until Fase 3
 const vehicleSchema = z.object({
     owner: z.string().min(1, "El propietario es requerido"),
     phone: z.string().regex(/^\d{7,15}$/, "El teléfono debe tener entre 7 y 15 dígitos"),
@@ -29,7 +47,6 @@ export const vehicleController = {
             const vehicles = await prisma.vehicle.findMany({
                 orderBy: { createdAt: 'desc' },
             });
-            // Formatear los id a string para mantener compatibilidad con el frontend
             const formattedVehicles = vehicles.map((v: any) => ({
                 ...v,
                 id: v.id.toString()
@@ -40,44 +57,72 @@ export const vehicleController = {
         }
     },
 
-    // POST new vehicle
-    create: async (req: Request, res: Response, next: NextFunction) => {
+    createClient: async (req: Request, res: Response, next: NextFunction) => {
         try {
-            // Validar payload con Zod
-            const validatedData = vehicleSchema.parse(req.body);
-
-            const newVehicle = await prisma.vehicle.create({
+            const data = clientCreateSchema.parse(req.body);
+            const vehicle = await prisma.vehicle.create({
                 data: {
-                    owner: validatedData.owner,
-                    phone: validatedData.phone,
-                    type: validatedData.type,
-                    carname: validatedData.carname,
-                    model: validatedData.model,
-                    km: validatedData.km || null,
-                    entry: validatedData.entry,
-                    exit: validatedData.exit || null,
-                    problem: validatedData.problem,
-                    cost_labor: validatedData.cost_labor?.toString() || null,
-                    cost_parts: validatedData.cost_parts?.toString() || null,
-                    status: validatedData.status || 'Pendiente',
-                    source: validatedData.source || 'client'
-                }
+                    owner: data.owner,
+                    phone: data.phone,
+                    type: data.type,
+                    carname: data.carname,
+                    model: data.model,
+                    km: data.km || null,
+                    problem: data.problem,
+                    entry: new Date().toISOString().substring(0, 10),
+                    source: 'client',
+                    status: 'Pendiente',
+                },
             });
-
             res.status(201).json({
-                ...newVehicle,
-                id: newVehicle.id.toString()
+                ...vehicle,
+                id: vehicle.id.toString()
             });
         } catch (error) {
             next(error);
         }
     },
 
+    createAdmin: async (req: AuthRequest, res: Response, next: NextFunction) => {
+        try {
+            const data = adminCreateSchema.parse(req.body);
+            const vehicle = await prisma.vehicle.create({
+                data: {
+                    owner: data.owner,
+                    phone: data.phone,
+                    type: data.type,
+                    carname: data.carname,
+                    model: data.model,
+                    km: data.km || null,
+                    problem: data.problem,
+                    entry: data.entry || new Date().toISOString().substring(0, 10),
+                    exit: data.exit || null,
+                    cost_labor: data.cost_labor || null,
+                    cost_parts: data.cost_parts || null,
+                    source: 'admin',
+                    status: data.status || 'Pendiente',
+                },
+            });
+            res.status(201).json({
+                ...vehicle,
+                id: vehicle.id.toString()
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    createCompat: async (req: AuthRequest, res: Response, next: NextFunction) => {
+        if (req.admin) {
+            return vehicleController.createAdmin(req, res, next);
+        }
+        return vehicleController.createClient(req as Request, res, next);
+    },
+
     // PUT update vehicle
     update: async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
-            // Validar payload con Zod
             const validatedData = vehicleSchema.parse(req.body);
 
             const updatedVehicle = await prisma.vehicle.update({

@@ -7,11 +7,13 @@ import authRoutes from './routes/auth.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
 import { PORT, CORS_ORIGIN } from './config.js';
 import { PrismaClient } from '@prisma/client';
+import { globalRateLimiter } from './middleware/rate-limit.js';
 
 const prisma = new PrismaClient();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
+app.use(globalRateLimiter);
 
 // Security headers + CSP
 app.use(helmet({
