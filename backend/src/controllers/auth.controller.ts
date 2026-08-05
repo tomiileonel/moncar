@@ -9,15 +9,20 @@ import { JWT_SECRET, ADMIN_REGISTER_SECRET } from '../config.js';
 const prisma = new PrismaClient();
 
 // Esquemas de Validación con Zod
+const normalizedEmailSchema = z.preprocess(
+    (value) => typeof value === 'string' ? value.trim().toLowerCase() : value,
+    z.string().email("El correo no tiene un formato válido")
+);
+
 const registerSchema = z.object({
-    name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-    email: z.string().email("El correo no tiene un formato válido"),
+    name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres"),
+    email: normalizedEmailSchema,
     password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
-    adminSecret: z.string().min(1, "El secreto de administrador es obligatorio")
+    adminSecret: z.string().trim().min(1, "El secreto de administrador es obligatorio")
 });
 
 const loginSchema = z.object({
-    email: z.string().email("El correo no tiene un formato válido"),
+    email: normalizedEmailSchema,
     password: z.string().min(1, "La contraseña es obligatoria")
 });
 

@@ -1891,9 +1891,20 @@
     let curFilter = 'todos';
     let selType = { c: '', a: '', e: '' };
 
+    const TYPE_TO_API = { 'Auto': 'AUTO', 'Camioneta': 'CAMIONETA', 'Camión': 'CAMION' };
+    const STATUS_TO_API = { 'Pendiente': 'PENDIENTE', 'En reparación': 'EN_REPARACION', 'Listo': 'LISTO' };
+    const API_TO_TYPE = Object.fromEntries(Object.entries(TYPE_TO_API).map(([label, value]) => [value, label]));
+    const API_TO_STATUS = Object.fromEntries(Object.entries(STATUS_TO_API).map(([label, value]) => [value, label]));
+    const toApiType = value => TYPE_TO_API[value] || value;
+    const toApiStatus = value => STATUS_TO_API[value] || value;
+    const toUiType = value => API_TO_TYPE[value] || value;
+    const toUiStatus = value => API_TO_STATUS[value] || value;
+    const dateInputValue = value => value ? String(value).slice(0, 10) : '';
+
     async function loadData() {
       try {
-        const res = await fetch(`${API_BASE}/api/vehicles`);
+        const headers = currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {};
+        const res = await fetch(`${API_BASE}/api/vehicles`, { headers });
         if (res.ok) {
           db.vehicles = await res.json();
           if (document.getElementById('dashboard') && !document.getElementById('dashboard').classList.contains('hidden')) {
@@ -2061,7 +2072,7 @@
       try {
         const res = await fetch(`${API_BASE}/api/vehicles`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ owner: document.getElementById('c-name').value.trim(), phone: document.getElementById('c-phone').value.trim(), type, carname, model, km: '', entry, exit: '', problem, cost_labor: '', cost_parts: '', status: 'Pendiente', source: 'client' })
+          body: JSON.stringify({ owner: document.getElementById('c-name').value.trim(), phone: document.getElementById('c-phone').value.trim(), type: toApiType(type), carname, year: model, km: '', problem })
         });
         if (!res.ok) throw new Error();
         loadData(); // refresh background
@@ -2139,7 +2150,8 @@
         });
 
         if (!res.ok) {
-          showFErr('al-pass-err', 'Credenciales incorrectas'); shake('auth-card'); return;
+          const errorData = await res.json().catch(() => ({}));
+          showFErr('al-pass-err', errorData.error || 'Credenciales incorrectas'); shake('auth-card'); return;
         }
 
         const data = await res.json();
@@ -2257,8 +2269,8 @@
     // ══════════════════════════════════════════════════════════════
     function renderStats() {
       const vs = db.vehicles, total = vs.length;
-      const pend = vs.filter(v => v.status !== 'Listo').length;
-      const done = vs.filter(v => v.status === 'Listo').length;
+      const pend = vs.filter(v => toUiStatus(v.status) !== 'Listo').length;
+      const done = vs.filter(v => toUiStatus(v.status) === 'Listo').length;
       const now = new Date(), ck = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const monthVehicles = vs.filter(v => v.entry && monthKey(v.entry) === ck);
       const mRev = monthVehicles.reduce((s, v) => s + getVehicleTotal(v), 0);
@@ -2281,8 +2293,8 @@
     </div>`).join('');
 
       document.getElementById('ft-todos').textContent = `(${total})`;
-      document.getElementById('ft-pend').textContent = `(${vs.filter(v => v.status === 'Pendiente').length})`;
-      document.getElementById('ft-enrep').textContent = `(${vs.filter(v => v.status === 'En reparación').length})`;
+      document.getElementById('ft-pend').textContent = `(${vs.filter(v => toUiStatus(v.status) === 'Pendiente').length})`;
+      document.getElementById('ft-enrep').textContent = `(${vs.filter(v => toUiStatus(v.status) === 'En reparación').length})`;
       document.getElementById('ft-listo').textContent = `(${done})`;
     }
 
@@ -2295,6 +2307,7 @@
     }
 
     function badgeHTML(status) {
+      status = toUiStatus(status);
       const m = {
         'Pendiente': { bg: 'rgba(245,158,11,.12)', c: '#f59e0b', b: 'rgba(245,158,11,.3)', l: 'Pendiente' },
         'En reparación': { bg: 'rgba(96,165,250,.12)', c: '#60a5fa', b: 'rgba(96,165,250,.3)', l: 'En reparación' },
@@ -2307,8 +2320,8 @@
     function renderTable() {
       const q = (document.getElementById('search-box').value || '').toLowerCase();
       const vs = db.vehicles.filter(v => {
-        const mf = curFilter === 'todos' || v.status === curFilter;
-        const ms = !q || [v.owner, v.carname, v.model, v.type, v.status].some(s => (s || '').toLowerCase().includes(q));
+        const mf = curFilter === 'todos' || toUiStatus(v.status) === curFilter;
+        const ms = !q || [v.owner, v.carname, v.year, toUiType(v.type), toUiStatus(v.status)].some(s => (s || '').toString().toLowerCase().includes(q));
         return mf && ms;
       });
       const wrap = document.getElementById('vehicles-table-wrap');
@@ -2316,9 +2329,9 @@
         wrap.innerHTML = `<div class="empty"><div class="empty-icon">🚗</div><p>Sin resultados para los filtros actuales</p></div>`;
         return;
       }
-      const svgFor = t => t === 'Camión'
+      const svgFor = t => toUiType(t) === 'Camión'
         ? '<rect x="2" y="8" width="20" height="18" rx="1"/><rect x="22" y="14" width="24" height="12" rx="1"/><path d="M22 14 L30 8 L46 8 L46 14"/><circle cx="11" cy="26" r="3.5"/><circle cx="37" cy="26" r="3.5"/>'
-        : t === 'Camioneta'
+        : toUiType(t) === 'Camioneta'
           ? '<path d="M4 22 L6 12 L14 7 L34 7 L42 12 L44 22 L44 26 L4 26 Z"/><path d="M14 7 L14 22 M34 7 L34 22"/><circle cx="13" cy="26" r="4.5"/><circle cx="35" cy="26" r="4.5"/>'
           : '<path d="M4 22 L8 14 L15 10 L33 10 L40 14 L44 22 L44 26 L4 26 Z"/><path d="M15 10 L18 6 L30 6 L33 10"/><circle cx="13" cy="26" r="4"/><circle cx="35" cy="26" r="4"/>';
 
@@ -2338,14 +2351,14 @@
               </div>
               <div>
                 <div style="color:var(--text);font-weight:600;font-size:13px">${escapeHtml(v.carname) || '—'}</div>
-                <div style="color:var(--muted);font-size:11px">${escapeHtml(v.model?.toString()) || '—'}</div>
+                <div style="color:var(--muted);font-size:11px">${escapeHtml(v.year?.toString()) || '—'}</div>
               </div>
             </div></td>
             <td>
               <div style="font-size:13px">${escapeHtml(v.owner)}</div>
               <div style="color:var(--muted);font-size:11px">${escapeHtml(v.phone) || '—'}</div>
             </td>
-            <td style="font-size:12px;color:var(--muted)">${escapeHtml(v.type) || '—'}</td>
+            <td style="font-size:12px;color:var(--muted)">${escapeHtml(toUiType(v.type)) || '—'}</td>
             <td class="td-mono" style="font-size:12px">${escapeHtml(v.entry) || '—'}</td>
             <td class="td-mono" style="font-size:12px;color:${v.exit ? 'var(--success)' : 'var(--muted)'}">${escapeHtml(v.exit) || 'Pendiente'}</td>
             <td class="td-mono" style="font-size:12px">${v.km ? escapeHtml(Number(v.km).toLocaleString('es-AR')) + ' km' : '—'}</td>
@@ -2363,7 +2376,7 @@
     // ══════════════════════════════════════════════════════════════
     function openDrawer(id) {
       const v = db.vehicles.find(x => x.id === id); if (!v) return;
-      document.getElementById('drawer-title').textContent = `${v.carname || 'Vehículo'} ${v.model || ''}`;
+      document.getElementById('drawer-title').textContent = `${v.carname || 'Vehículo'} ${v.year || ''}`;
       document.getElementById('drawer-edit-btn').onclick = () => { closeDrawer(); openEditById(id); };
       const row = (k, val, sty = '') => `<div class="detail-row"><span class="k">${k}</span><span class="v" ${sty}>${escapeHtml(val) || '—'}</span></div>`;
       const total = getVehicleTotal(v);
@@ -2387,12 +2400,12 @@
     </div>`: ''}
     ${row('Propietario', v.owner, 'style="font-weight:bold"')}
     ${row('Teléfono', v.phone)}
-    ${row('Tipo', v.type)}
+    ${row('Tipo', toUiType(v.type))}
     ${row('Marca', v.carname)}
-    ${row('Año', v.model?.toString())}
+    ${row('Año', v.year?.toString())}
     ${row('Fecha ingreso', v.entry)}
     ${row('Fecha salida', v.exit, 'style="color:var(--success)"')}
-    ${row('Estado', v.status)}
+    ${row('Estado', toUiStatus(v.status))}
     <div class="detail-row" style="flex-direction:column;gap:8px;border-bottom:none">
       <span class="k">Problema</span>
       <span style="font-size:13px;color:var(--text);line-height:1.6;margin-top:4px">${escapeHtml(v.problem) || '—'}</span>
@@ -2427,7 +2440,7 @@
 
         const res = await fetch(`${API_BASE}/api/vehicles`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ owner, phone, type, carname, model, km, entry, exit, problem, cost_labor, cost_parts, status, source: 'admin' })
+          body: JSON.stringify({ owner, phone, type: toApiType(type), carname, year: model, km, entry, exit, problem, cost_labor, cost_parts, status: toApiStatus(status) })
         });
 
         if (!res.ok) throw new Error();
@@ -2461,18 +2474,18 @@
       document.getElementById('e-owner').value = v.owner || '';
       document.getElementById('e-phone').value = v.phone || '';
       document.getElementById('e-km').value = v.km || '';
-      document.getElementById('e-entry').value = v.entry || '';
-      document.getElementById('e-exit').value = v.exit || '';
+      document.getElementById('e-entry').value = dateInputValue(v.entry);
+      document.getElementById('e-exit').value = dateInputValue(v.exit);
       document.getElementById('e-problem').value = v.problem || '';
       // cost split — handle legacy (cost) and new (cost_labor/cost_parts)
       document.getElementById('e-cost-labor').value = v.cost_labor || v.cost || '';
       document.getElementById('e-cost-parts').value = v.cost_parts || '';
       document.getElementById('e-carname').value = v.carname || '';
-      document.getElementById('e-model').value = v.model || '';
-      document.getElementById('e-status').value = v.status || 'Pendiente';
-      selType.e = v.type || '';
+      document.getElementById('e-model').value = v.year || v.model || '';
+      document.getElementById('e-status').value = toUiStatus(v.status) || 'Pendiente';
+      selType.e = toUiType(v.type) || '';
       document.querySelectorAll('#e-type-cards .vehicle-card').forEach(c => {
-        const sel = c.dataset.type === v.type;
+        const sel = c.dataset.type === toUiType(v.type);
         c.classList.toggle('selected', sel);
         const ic = c.querySelector('div'); if (ic) ic.style.color = sel ? 'var(--accent)' : 'var(--muted)';
         const lb = c.querySelectorAll('div')[1]; if (lb) lb.style.color = sel ? 'var(--text)' : 'var(--muted)';
@@ -2507,16 +2520,16 @@
       const payload = {
         owner: document.getElementById('e-owner').value.trim(),
         phone: document.getElementById('e-phone').value.trim(),
-        type: selType.e || db.vehicles[idx].type,
+        type: toApiType(selType.e || db.vehicles[idx].type),
         carname: document.getElementById('e-carname').value,
-        model: document.getElementById('e-model').value,
+        year: document.getElementById('e-model').value,
         km: document.getElementById('e-km').value,
         cost_labor: document.getElementById('e-cost-labor').value,
         cost_parts: document.getElementById('e-cost-parts').value,
         entry: document.getElementById('e-entry').value,
         exit: document.getElementById('e-exit').value,
         problem: document.getElementById('e-problem').value.trim(),
-        status: document.getElementById('e-status').value,
+        status: toApiStatus(document.getElementById('e-status').value),
       };
 
       try {
