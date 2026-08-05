@@ -14,6 +14,9 @@ const prisma = new PrismaClient();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
+if (process.env['VERCEL']) {
+  app.set('trust proxy', 1);
+}
 app.use(globalRateLimiter);
 
 // Security headers + CSP
@@ -44,9 +47,13 @@ app.use('/api/vehicles', vehicleRoutes);
 // Global error handler — must be after all routes
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`[Server]: Moncar listening at http://localhost:${PORT}`);
-});
+export default app;
+
+if (!process.env['VERCEL']) {
+  app.listen(PORT, () => {
+    console.log(`[Server]: Moncar listening at http://localhost:${PORT}`);
+  });
+}
 
 // Graceful shutdown
 const shutdown = async () => {
