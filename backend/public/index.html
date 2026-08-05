@@ -1525,9 +1525,13 @@
               placeholder="admin@moncar.com">
             <div class="field-error" id="as-email-err"></div>
           </div>
-          <div class="form-group"><label>Contraseña pre-establecida</label><input type="password" id="as-pass"
+          <div class="form-group"><label>Contraseña</label><input type="password" id="as-pass"
               placeholder="••••••••••">
             <div class="field-error" id="as-pass-err"></div>
+          </div>
+          <div class="form-group"><label>Secreto de Administrador</label><input type="password" id="as-secret"
+              placeholder="Clave de registro">
+            <div class="field-error" id="as-secret-err"></div>
           </div>
           <button class="btn btn-primary" style="width:100%;margin-top:8px" id="signup-btn"
             onclick="adminSignup()">Crear cuenta</button>
@@ -2055,7 +2059,7 @@
       btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Registrando…';
 
       try {
-        const res = await fetch('http://localhost:3000/api/vehicles', {
+        const res = await fetch(`${API_BASE}/api/vehicles`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ owner: document.getElementById('c-name').value.trim(), phone: document.getElementById('c-phone').value.trim(), type, carname, model, km: '', entry, exit: '', problem, cost_labor: '', cost_parts: '', status: 'Pendiente', source: 'client' })
         });
@@ -2086,12 +2090,16 @@
     }
 
     async function adminSignup() {
-      const name = document.getElementById('as-name').value.trim(), email = document.getElementById('as-email').value.trim().toLowerCase(), pass = document.getElementById('as-pass').value;
-      clearFErrs(['as-name-err', 'as-email-err', 'as-pass-err']); setAlert('auth-alert', '');
+      const name = document.getElementById('as-name').value.trim();
+      const email = document.getElementById('as-email').value.trim().toLowerCase();
+      const pass = document.getElementById('as-pass').value;
+      const secret = document.getElementById('as-secret').value;
+      clearFErrs(['as-name-err', 'as-email-err', 'as-pass-err', 'as-secret-err']); setAlert('auth-alert', '');
       let ok = true;
       if (!name) { showFErr('as-name-err', 'El nombre es requerido'); ok = false; }
       if (!/\S+@\S+\.\S+/.test(email)) { showFErr('as-email-err', 'Correo inválido'); ok = false; }
-      if (pass !== ADMIN_PW) { showFErr('as-pass-err', 'La contraseña no es correcta'); ok = false; }
+      if (pass.length < 6) { showFErr('as-pass-err', 'La contraseña debe tener al menos 6 caracteres'); ok = false; }
+      if (!secret) { showFErr('as-secret-err', 'El secreto es requerido'); ok = false; }
       if (!ok) { shake('auth-card'); return; }
 
       const btn = document.getElementById('signup-btn');
@@ -2100,7 +2108,7 @@
       try {
         const res = await fetch(`${API_BASE}/api/auth/register`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password: pass, adminSecret: document.getElementById('as-secret')?.value || pass })
+          body: JSON.stringify({ name, email, password: pass, adminSecret: secret })
         });
         if (!res.ok) {
           const err = await res.json();
