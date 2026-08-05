@@ -24,3 +24,6 @@ compile-error.txt
 
 # Environment
 .env
+
+# Database backups
+*_backup*.sql
