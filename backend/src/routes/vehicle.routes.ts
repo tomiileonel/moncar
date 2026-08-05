@@ -16,6 +16,6 @@ router.post('/client', clientRateLimiter, vehicleController.createClient);
 
 // Backward compat: dispatches based on token presence
 // (frontend still uses POST /api/vehicles until Fase 5)
-router.post('/', optionalAuth, vehicleController.createCompat);
+router.post('/', clientRateLimiter, optionalAuth, vehicleController.createCompat);
 
 export default router;

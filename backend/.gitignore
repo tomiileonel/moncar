@@ -20,6 +20,7 @@ prisma.config.d.ts.map
 *.log
 build_output.txt
 runtime_error.txt
+compile-error.txt
 
 # Environment
 .env

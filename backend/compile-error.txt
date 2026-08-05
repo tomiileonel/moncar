@@ -1,4 +1,0 @@
-src/controllers/vehicle.controller.ts(72,21): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
-  Type 'undefined' is not assignable to type 'string'.
-src/controllers/vehicle.controller.ts(98,21): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
-  Type 'undefined' is not assignable to type 'string'.
