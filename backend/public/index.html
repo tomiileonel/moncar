@@ -2790,6 +2790,7 @@
     }
 
     if (window.location.hash.startsWith('#token=')) {
+      showScreen('screen-admin-login');
       setTimeout(() => switchAuthTab('signup'), 100);
     }
   </script>
