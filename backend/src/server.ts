@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import authRoutes from './routes/auth.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
+import reportsRoutes from './routes/reports.routes.js';
 import { PORT, CORS_ORIGIN } from './config.js';
 import { prisma } from './lib/prisma.js';
 import { globalRateLimiter } from './middleware/rate-limit.js';
@@ -40,6 +41,7 @@ app.use(express.json());
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/vehicles', vehicleRoutes);
+app.use('/api/admin/reports', reportsRoutes);
 
 // Global error handler — must be after all routes
 app.use(errorHandler);

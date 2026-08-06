@@ -32,12 +32,27 @@ enum AdminRole {
 /// Admin is intentionally immutable (no updatedAt). Password changes
 /// create an audit trail via application logs, not DB timestamps.
 model Admin {
-  id        Int       @id @default(autoincrement())
+  id        Int           @id @default(autoincrement())
   name      String
-  email     String    @unique
-  password  String    // bcrypt hash
-  role      AdminRole @default(MECHANIC)
-  createdAt DateTime  @default(now())
+  email     String        @unique
+  password  String        // bcrypt hash
+  role      AdminRole     @default(MECHANIC)
+  createdAt DateTime      @default(now())
+  invites   AdminInvite[] @relation("InviteIssuer")
+}
+
+model AdminInvite {
+  id         Int       @id @default(autoincrement())
+  token      String    @unique // sha256 hex digest, raw token is never persisted
+  role       AdminRole @default(MECHANIC)
+  issuedBy   Admin     @relation("InviteIssuer", fields: [issuedById], references: [id])
+  issuedById Int
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
 }
 
 model Vehicle {
@@ -61,4 +76,8 @@ model Vehicle {
 
   @@index([deleted, status])
   @@index([entry])
+  // Cubre reports.controller.ts: getRevenueReport filtra por deleted+status
+  // y rangea por entry en una sola condición — este compuesto evita que
+  // MySQL recurra a index merge entre los dos índices de arriba.
+  @@index([deleted, status, entry])
 }

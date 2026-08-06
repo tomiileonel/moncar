@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import type { AdminRole } from '@prisma/client';
 
 import { JWT_SECRET } from '../config.js';
 
@@ -7,6 +8,7 @@ export interface AdminPayload {
     id: number;
     email: string;
     name: string;
+    role: AdminRole;
 }
 
 export interface AuthRequest extends Request {
@@ -22,14 +24,18 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
         return;
     }
 
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            res.status(403).json({ error: 'Token inválido o expirado' });
+    try {
+        const payload = jwt.verify(token, JWT_SECRET) as AdminPayload;
+        if (!payload.role) {
+            // Token emitido antes de que el rol formara parte del payload: ya no es válido.
+            res.status(401).json({ error: 'Token obsoleto, iniciá sesión de nuevo' });
             return;
         }
-        req.admin = user as AdminPayload;
+        req.admin = payload;
         next();
-    });
+    } catch {
+        res.status(401).json({ error: 'Token inválido o expirado' });
+    }
 };
 
 export const optionalAuth = (req: AuthRequest, res: Response, next: NextFunction): void => {
@@ -37,13 +43,33 @@ export const optionalAuth = (req: AuthRequest, res: Response, next: NextFunction
     const token = authHeader && authHeader.split(' ')[1];
     
     if (token) {
-        jwt.verify(token, JWT_SECRET, (err, user) => {
-            if (!err) {
-                req.admin = user as AdminPayload;
+        try {
+            const payload = jwt.verify(token, JWT_SECRET) as AdminPayload;
+            if (payload.role) {
+                req.admin = payload;
             }
-            next();
-        });
-    } else {
-        next();
+        } catch {
+            // Ignoramos errores en auth opcional
+        }
     }
+    next();
+};
+
+/**
+ * Debe montarse SIEMPRE después de authenticateToken.
+ * Uso: router.delete('/:id', authenticateToken, requireRole(['OWNER']), handler)
+ */
+export const requireRole = (allowed: AdminRole[]) => {
+    return (req: AuthRequest, res: Response, next: NextFunction): void => {
+        if (!req.admin) {
+            // Defensa en profundidad: si esto dispara, el middleware está mal ordenado.
+            res.status(401).json({ error: 'No autenticado' });
+            return;
+        }
+        if (!allowed.includes(req.admin.role)) {
+            res.status(403).json({ error: 'No tenés permisos para esta acción' });
+            return;
+        }
+        next();
+    };
 };

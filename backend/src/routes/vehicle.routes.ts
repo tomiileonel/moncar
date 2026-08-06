@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticateToken, optionalAuth } from '../middleware/auth.js';
+import { authenticateToken, optionalAuth, requireRole } from '../middleware/auth.js';
 import { clientRateLimiter } from '../middleware/rate-limit.js';
 import { vehicleController } from '../controllers/vehicle.controller.js';
 
@@ -8,7 +8,7 @@ const router = Router();
 // Admin routes (auth required)
 router.get('/', authenticateToken, vehicleController.getAll);
 router.put('/:id', authenticateToken, vehicleController.update);
-router.delete('/:id', authenticateToken, vehicleController.delete);
+router.delete('/:id', authenticateToken, requireRole(['OWNER']), vehicleController.delete);
 
 // Explicit admin/client create endpoints
 router.post('/admin', authenticateToken, vehicleController.createAdmin);

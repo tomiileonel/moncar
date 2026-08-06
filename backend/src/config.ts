@@ -18,7 +18,6 @@ function requireEnv(name: string): string {
 }
 
 export const JWT_SECRET = requireEnv('JWT_SECRET');
-export const ADMIN_REGISTER_SECRET = requireEnv('ADMIN_REGISTER_SECRET');
 export const PORT = parseInt(process.env['PORT'] || '3000', 10);
 export const CORS_ORIGIN = process.env['CORS_ORIGIN']
   || (process.env['VERCEL_URL'] ? `https://${process.env['VERCEL_URL']}` : `http://localhost:${PORT}`);

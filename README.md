@@ -1,68 +1,92 @@
 # Moncar 🚗🔧
 
-**Moncar** es un sistema de gestión operativa ágil y directo diseñado específicamente para el uso cotidiano en talleres mecánicos. Creado bajo una filosofía de "cero fricciones", Moncar omite la exhibición corporativa para centrarse exclusivamente en la velocidad de registro, el control de presupuestos (desglose de mano de obra y repuestos) y el seguimiento del estado de los vehículos en tiempo real.
+**Moncar** es un sistema de gestión operativa ágil, directo y sin fricciones diseñado para el uso cotidiano en talleres mecánicos. Olvidamos las exhibiciones corporativas para centrarnos en lo verdaderamente crítico: **velocidad de registro, control de presupuestos transparente (desglose de mano de obra y repuestos) y seguimiento del estado de los vehículos en tiempo real.**
 
 ## 🚀 Características Principales
 
-* **Interfaz Unificada y Ágil:** Acceso de clientes y administradores desde una misma pantalla rápida, ideal para usarse en una tablet de mostrador.
-* **Gestión de Órdenes en Tiempo Real:** Seguimiento visual del estado de los vehículos (Pendiente, En Reparación, Listo).
-* **Desglose Financiero Dinámico:** Cálculo en tiempo real de presupuestos separando "Mano de Obra" y "Repuestos".
-* **Validación Estricta:** Limpieza y validación de datos proactiva tanto en el cliente (Vanilla JS) como en el servidor (Zod).
-* **Seguridad:** Autenticación de mecánicos/administradores mediante JWT y encriptación de contraseñas con Bcrypt.
-
+- **Interfaz Unificada y Ágil:** Accesible tanto para clientes como administradores desde una única vista optimizada. Perfecta para operar desde una tablet en el mostrador o el taller.
+- **Gestión Visual de Órdenes:** Seguimiento del estado en tiempo real (Pendiente, En Reparación, Listo).
+- **Control Financiero Transparente:** Cálculo automático de presupuestos separando estrictamente "Mano de Obra" y "Repuestos".
+- **Robusta Validación de Datos:** Validación proactiva en el cliente (Vanilla JS) y en el servidor (Zod).
+- **Reportes Financieros de Precisión:** Dashboard para administradores con cálculo exacto de ingresos facturados vs. en curso.
+- **Seguridad y Registro Cerrado:** Autenticación mediante JWT y contraseñas (Bcrypt). El sistema es 100% cerrado al público: los nuevos mecánicos solo pueden registrarse a través de un **Sistema de Invitaciones Seguras** (tokens de un solo uso encriptados generados por un `OWNER`).
 ---
 
 ## 🛠️ Stack Tecnológico
 
-A diferencia de las arquitecturas monolíticas de frontend pesadas, Moncar apuesta por un frontend ultraligero combinado con un backend fuertemente tipado y robusto.
+A diferencia de las arquitecturas monolíticas pesadas, Moncar apuesta por la agilidad extrema en el cliente respaldada por un backend fuertemente tipado.
 
-**Frontend:**
-* HTML5 & CSS3 (Tailwind CSS vía CDN)
-* Vanilla JavaScript (Manipulación directa del DOM y gestión de estado asíncrono)
+### Frontend
+- **HTML5 & CSS3** (Estilizado rápido y responsivo vía Tailwind CSS CDN).
+- **Vanilla JavaScript** (Manipulación asíncrona del DOM sin tiempos de compilación ni dependencias innecesarias).
 
-**Backend:**
-* **Entorno:** Node.js con Express.js
-* **Lenguaje:** TypeScript (Asegurando tipado estricto de extremo a extremo)
-* **Base de Datos & ORM:** MySQL gestionado a través de **Prisma ORM**
-* **Validación & Seguridad:** Zod (Validación de esquemas), JWT (Autenticación), Bcrypt (Hasheo).
+### Backend
+- **Core:** Node.js + Express.js.
+- **Lenguaje:** TypeScript (Para un tipado estricto y predecible de extremo a extremo).
+- **Base de Datos & ORM:** MySQL interactuando a través de **Prisma ORM**.
+- **Seguridad & Validación:** Zod (Esquemas), JWT (Autenticación), Bcrypt (Hasheo de contraseñas).
 
 ---
 
 ## 🆚 Moncar vs. Checkcar
 
-Aunque ambos sistemas abordan la gestión de vehículos, tienen propósitos, enfoques y arquitecturas de software diametralmente opuestas.
+Aunque ambos sistemas abordan la gestión vehicular, sus filosofías y arquitecturas son radicalmente opuestas.
 
 | Característica | Moncar 🚗🔧 | Checkcar 🏢🚙 |
 | :--- | :--- | :--- |
-| **Enfoque del Producto** | Herramienta de uso interno, rápido y operativo. | Producto comercial (SaaS) enfocado en "venderse al mercado". |
-| **Landing Page** | ❌ Inexistente. Va directo a la acción. | ✅ Completa (Secciones *Why Us*, *Testimonials*, *Services*). |
-| **Stack Frontend** | Vanilla JavaScript + HTML/Tailwind. Renderizado ligero y sin tiempos de compilación complejos. | React.js + Vite + Enrutamiento (React Router). Arquitectura basada en componentes. |
-| **Stack Backend** | **TypeScript + Prisma ORM**. Fuertemente tipado, con migraciones automáticas y validación con Zod. | **JavaScript + SQL Crudo**. Consultas manuales a MySQL mediante el driver `mysql2`. |
-| **Flujo de Usuario** | Interfaz compartida (Portal de cliente y Admin modal en la misma vista). Ideal para uso físico en el taller. | Interfaces separadas. Rutas protegidas exclusivas y vistas corporativas públicas distintas. |
-| **Gestión de Costos** | Diferenciación estricta y en tiempo real de *Mano de Obra* vs *Repuestos* al editar. | Manejo de montos más general orientados a la facturación de órdenes globales. |
+| **Enfoque del Producto** | **Herramienta operativa interna, rápida y directa.** | Producto comercial (SaaS) enfocado en marketing. |
+| **Página de Aterrizaje** | ❌ Inexistente. Va directo al flujo de trabajo. | ✅ Completa (Marketing, Testimonios, Precios). |
+| **Frontend** | Vanilla JavaScript + Tailwind CSS. Ultraligero. | React.js + Vite. Arquitectura pesada de componentes. |
+| **Backend** | **TypeScript + Prisma ORM**. Fuertemente tipado. | JavaScript + SQL Crudo (driver `mysql2`). |
+| **Interfaz de Usuario** | Vista compartida y rápida. Ideal para trabajo físico. | Interfaces segregadas corporativas y públicas. |
+| **Gestión Financiera** | Diferenciación estricta de *Mano de Obra* y *Repuestos*. | Montos globales orientados a la facturación. |
 
-**En resumen:** `Checkcar` es la vitrina digital y el sistema administrativo completo que un taller usaría para atraer clientes de internet. `Moncar` es la herramienta cruda, rápida e interna que el mecánico o recepcionista tiene abierta en la tablet llena de grasa para registrar un auto en 5 segundos.
+> **En síntesis:** Checkcar es la vitrina digital corporativa. **Moncar es la herramienta cruda e interna que el mecánico tiene abierta en la tablet, lista para registrar un vehículo en menos de 5 segundos.**
 
 ---
 
 ## ⚙️ Instalación y Configuración Local
 
-### 1. Configuración del Backend
+### 1. Configuración del Entorno
+
 ```bash
 # Navegar al directorio del backend
 cd backend
 
 # Instalar dependencias
 npm install
+```
 
-# Configurar variables de entorno (Crear archivo .env)
-# DATABASE_URL="mysql://usuario:password@localhost:3306/moncar_db"
-# JWT_SECRET="tu_secreto_super_seguro"
+### 2. Variables de Entorno
 
-# Generar el cliente de Prisma y sincronizar la BD
+Crear un archivo `.env` en el directorio `backend` con el siguiente contenido (basarse en `.env.example`):
+
+```env
+DATABASE_URL="mysql://usuario:password@localhost:3306/moncar_db"
+JWT_SECRET="tu_secreto_super_seguro_y_complejo"
+PORT=3000
+```
+
+### 3. Base de Datos y Ejecución
+
+```bash
+# Generar el cliente de Prisma y sincronizar el esquema con la base de datos
 npx prisma generate
 npx prisma db push
 
-# Compilar TypeScript e iniciar el servidor
+# Compilar el código TypeScript
 npm run build
+
+# Iniciar el servidor
 npm start
+```
+
+Para desarrollo con recarga en caliente (hot-reload):
+
+```bash
+npm run dev
+```
+
+---
+
+**Moncar:** Potencia el flujo de trabajo de tu taller mecánico con eficiencia extrema y sin complicaciones.

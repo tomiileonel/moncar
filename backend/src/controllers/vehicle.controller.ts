@@ -166,8 +166,24 @@ export const vehicleController = {
       const { id } = req.params;
       const data = updateSchema.parse(req.body);
 
+      const vehicleId = Number.parseInt(id as string, 10);
+      const existingVehicle = await prisma.vehicle.findUnique({
+        where: { id: vehicleId }
+      });
+
+      if (!existingVehicle) {
+        res.status(404).json({ error: 'Vehículo no encontrado' });
+        return;
+      }
+
+      // Restricción: un MECHANIC no puede editar un vehículo que ya está LISTO.
+      if (req.admin && req.admin.role === 'MECHANIC' && existingVehicle.status === VehicleStatus.LISTO) {
+        res.status(403).json({ error: 'No tienes permisos para modificar un vehículo que ya está LISTO' });
+        return;
+      }
+
       const updatedVehicle = await prisma.vehicle.update({
-        where: { id: Number.parseInt(id as string, 10) },
+        where: { id: vehicleId },
         data: {
           owner: data.owner,
           phone: data.phone,
