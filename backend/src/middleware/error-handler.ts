@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
+import { InsufficientStockError } from '../services/inventory.service.js';
 
 export function errorHandler(
   err: unknown,
@@ -8,6 +9,11 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
+  if (err instanceof InsufficientStockError) {
+    res.status(409).json({ error: err.message });
+    return;
+  }
+
   if (err instanceof ZodError) {
     res.status(400).json({
       error: 'Datos inválidos',

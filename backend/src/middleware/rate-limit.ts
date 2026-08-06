@@ -25,6 +25,14 @@ export const clientRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+export const trackingRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Demasiadas consultas. Esperá 15 minutos e intentá de nuevo.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 export const globalRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,

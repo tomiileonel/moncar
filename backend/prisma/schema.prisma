@@ -29,13 +29,30 @@ enum AdminRole {
   MECHANIC
 }
 
+enum StockMovementType {
+  ENTRADA
+  SALIDA
+  AJUSTE
+}
+
+enum NotificationChannel {
+  WEBHOOK
+  WHATSAPP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 /// Admin is intentionally immutable (no updatedAt). Password changes
 /// create an audit trail via application logs, not DB timestamps.
 model Admin {
   id        Int           @id @default(autoincrement())
   name      String
   email     String        @unique
-  password  String        // bcrypt hash
+  password  String // bcrypt hash
   role      AdminRole     @default(MECHANIC)
   createdAt DateTime      @default(now())
   invites   AdminInvite[] @relation("InviteIssuer")
@@ -56,28 +73,95 @@ model AdminInvite {
 }
 
 model Vehicle {
-  id         Int           @id @default(autoincrement())
-  owner      String
-  phone      String
-  type       VehicleType   @default(AUTO)
-  carname    String
-  year       Int?
-  km         Int?
-  entry      DateTime
-  exit       DateTime?
-  problem    String        @db.Text
-  cost_labor Decimal?      @db.Decimal(12, 2)
-  cost_parts Decimal?      @db.Decimal(12, 2)
-  status     VehicleStatus @default(PENDIENTE)
-  source     VehicleSource @default(CLIENT)
-  deleted    Boolean       @default(false)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @default(now()) @updatedAt
+  id            Int             @id @default(autoincrement())
+  owner         String
+  phone         String
+  type          VehicleType     @default(AUTO)
+  carname       String
+  year          Int?
+  km            Int?
+  entry         DateTime
+  exit          DateTime?
+  problem       String          @db.Text
+  cost_labor    Decimal?        @db.Decimal(12, 2)
+  cost_parts    Decimal?        @db.Decimal(12, 2)
+  status        VehicleStatus   @default(PENDIENTE)
+  source        VehicleSource   @default(CLIENT)
+  plate         String?         @db.VarChar(12)
+  deleted       Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @default(now()) @updatedAt
+  parts         VehiclePart[]
+  stockMoves    StockMovement[]
+  notifications Notification[]
 
   @@index([deleted, status])
   @@index([entry])
+  @@index([plate, phone])
   // Cubre reports.controller.ts: getRevenueReport filtra por deleted+status
   // y rangea por entry en una sola condición — este compuesto evita que
   // MySQL recurra a index merge entre los dos índices de arriba.
   @@index([deleted, status, entry])
+}
+
+model InventoryItem {
+  id           Int             @id @default(autoincrement())
+  name         String
+  sku          String?         @unique
+  unit         String          @default("unidad")
+  quantity     Int             @default(0)
+  minimumStock Int             @default(0)
+  active       Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @default(now()) @updatedAt
+  movements    StockMovement[]
+  vehicleParts VehiclePart[]
+
+  @@index([active, quantity])
+}
+
+model StockMovement {
+  id        Int               @id @default(autoincrement())
+  item      InventoryItem     @relation(fields: [itemId], references: [id])
+  itemId    Int
+  vehicle   Vehicle?          @relation(fields: [vehicleId], references: [id])
+  vehicleId Int?
+  type      StockMovementType
+  quantity  Int
+  note      String?           @db.VarChar(255)
+  createdAt DateTime          @default(now())
+
+  @@index([itemId, createdAt])
+  @@index([vehicleId])
+}
+
+model VehiclePart {
+  id        Int           @id @default(autoincrement())
+  vehicle   Vehicle       @relation(fields: [vehicleId], references: [id])
+  vehicleId Int
+  item      InventoryItem @relation(fields: [itemId], references: [id])
+  itemId    Int
+  quantity  Int
+  unitCost  Decimal?      @db.Decimal(12, 2)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @default(now()) @updatedAt
+
+  @@unique([vehicleId, itemId])
+  @@index([itemId])
+}
+
+model Notification {
+  id               Int                 @id @default(autoincrement())
+  vehicle          Vehicle             @relation(fields: [vehicleId], references: [id])
+  vehicleId        Int
+  channel          NotificationChannel
+  status           NotificationStatus  @default(PENDING)
+  recipient        String              @db.VarChar(32)
+  message          String              @db.Text
+  providerResponse String?             @db.Text
+  sentAt           DateTime?
+  createdAt        DateTime            @default(now())
+
+  @@index([vehicleId, createdAt])
+  @@index([status, createdAt])
 }

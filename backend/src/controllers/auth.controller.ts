@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 
-import { JWT_SECRET } from '../config.js';
+import { APP_URL, JWT_SECRET } from '../config.js';
 import { prisma } from '../lib/prisma.js';
 import type { AdminPayload, AuthRequest } from '../middleware/auth.js';
 
@@ -92,9 +92,8 @@ export const authController = {
                 },
             });
 
-            const appUrl = process.env.APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://moncar-flax.vercel.app');
             res.status(201).json({
-                inviteUrl: `${appUrl}/#token=${rawToken}`,
+                inviteUrl: `${APP_URL}/#token=${rawToken}`,
                 expiresAt: invite.expiresAt,
             });
         } catch (error) {

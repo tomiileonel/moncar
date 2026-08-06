@@ -27,3 +27,6 @@ compile-error.txt
 
 # Database backups
 *_backup*.sql
+
+# Local scheduled backups
+backups/

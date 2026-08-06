@@ -21,3 +21,7 @@ export const JWT_SECRET = requireEnv('JWT_SECRET');
 export const PORT = parseInt(process.env['PORT'] || '3000', 10);
 export const CORS_ORIGIN = process.env['CORS_ORIGIN']
   || (process.env['VERCEL_URL'] ? `https://${process.env['VERCEL_URL']}` : `http://localhost:${PORT}`);
+export const APP_URL = process.env['APP_URL']
+  || (process.env['VERCEL_URL'] ? `https://${process.env['VERCEL_URL']}` : `http://localhost:${PORT}`);
+export const CRON_SECRET = process.env['CRON_SECRET'] || '';
+export const NOTIFICATION_WEBHOOK_URL = process.env['NOTIFICATION_WEBHOOK_URL'] || '';

@@ -1343,12 +1343,33 @@
     <p class="tagline anim-up" style="animation-delay:.15s;opacity:0">Sistema de Registro de Vehículos</p>
     <div class="landing-buttons anim-up" style="animation-delay:.25s;opacity:0">
       <button class="btn btn-primary" onclick="showScreen('screen-client-register')">Soy Cliente</button>
+      <button class="btn btn-outline" onclick="showScreen('screen-tracking')">Seguir mi vehículo</button>
       <button class="btn btn-outline" onclick="showScreen('screen-admin-login')">Acceso Administrador</button>
     </div>
     <div style="position:absolute;bottom:28px;right:28px" class="anim-in">
       <div style="display:flex;align-items:center;gap:8px">
         <span class="online-dot"></span>
         <span style="font-size:11px;color:var(--muted);letter-spacing:.05em">SISTEMA EN LÍNEA</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ PUBLIC TRACKING ════════════════════ -->
+  <div id="screen-tracking" class="screen mesh-bg hidden">
+    <div style="width:100%;max-width:440px;padding:24px">
+      <div style="text-align:center;margin-bottom:28px" class="anim-up">
+        <div class="logo-big" style="font-size:42px">MON<span>CAR</span></div>
+        <div style="font-size:11px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase">Portal de seguimiento</div>
+      </div>
+      <div class="glass anim-up" style="border-radius:20px;padding:36px;box-shadow:0 32px 80px rgba(0,0,0,.4)">
+        <h2 style="font-family:'Bebas Neue';font-size:24px;margin-bottom:6px">Consultá el estado</h2>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:24px">Ingresá la patente y el teléfono registrado en el taller.</p>
+        <div id="tracking-alert"></div>
+        <div class="form-group"><label>Patente / dominio</label><input id="t-plate" type="text" placeholder="AB 123 CD" maxlength="12" style="text-transform:uppercase"></div>
+        <div class="form-group"><label>Teléfono</label><input id="t-phone" type="tel" placeholder="1145223344" oninput="sanitizePhone(this)"></div>
+        <button class="btn btn-primary" style="width:100%;margin-top:8px" id="tracking-btn" onclick="trackVehicle()">Consultar estado</button>
+        <div id="tracking-result" style="margin-top:20px"></div>
+        <div style="text-align:center;margin-top:18px"><button class="btn-ghost" onclick="showLanding()">← Volver al inicio</button></div>
       </div>
     </div>
   </div>
@@ -1421,6 +1442,12 @@
           <h2 style="font-family:'Bebas Neue';font-size:22px;margin-bottom:4px">Datos del vehículo</h2>
           <p style="color:var(--muted);font-size:13px;margin-bottom:24px">Contanos qué vehículo y qué problema presenta.
           </p>
+          <div class="form-group">
+            <label>Patente / dominio</label>
+            <input type="text" id="c-plate" placeholder="Ej. AB 123 CD" maxlength="12" style="text-transform:uppercase">
+            <div class="input-hint">La necesitarás para consultar el estado del vehículo.</div>
+            <div class="field-error" id="c-plate-err"></div>
+          </div>
           <div class="form-group">
             <label>Tipo de vehículo</label>
             <div style="display:flex;gap:10px" id="c-type-cards">
@@ -1568,6 +1595,7 @@
       </h2>
       <p style="color:var(--muted);font-size:15px;line-height:1.7;margin-bottom:32px">Tu vehículo fue ingresado al
         sistema MONCAR. Nuestro equipo técnico lo revisará y te contactaremos a la brevedad.</p>
+      <div id="client-tracking-info" class="alert-success" style="display:none;text-align:left;margin-bottom:20px"></div>
       <button class="btn btn-primary" style="padding:13px 34px" onclick="showLanding()">Registrar otro vehículo</button>
     </div>
   </div>
@@ -1637,6 +1665,24 @@
         </div>
       </div>
 
+      <!-- INVENTORY -->
+      <div class="section-card" id="inventory-panel" style="animation:fadeUp .5s ease .19s both">
+        <div class="section-title">Inventario y repuestos</div>
+        <div id="inventory-alert"></div>
+        <div id="inventory-owner-controls" style="display:none">
+          <div class="form-row">
+            <div class="form-group"><label>Repuesto</label><input id="inventory-name" placeholder="Ej. Filtro de aceite"></div>
+            <div class="form-group"><label>Unidad</label><input id="inventory-unit" value="unidad" placeholder="unidad"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Stock inicial</label><input id="inventory-quantity" type="number" min="0" value="0"></div>
+            <div class="form-group"><label>Stock mínimo</label><input id="inventory-minimum" type="number" min="0" value="0"></div>
+          </div>
+          <button class="btn btn-outline" onclick="createInventoryItem()">Agregar repuesto</button>
+        </div>
+        <div id="inventory-list" style="margin-top:18px"></div>
+      </div>
+
       <!-- REGISTER -->
       <div class="section-card" id="admin-reg-section" style="animation:fadeUp .5s ease .2s both">
         <div class="section-title">Registrar Vehículo</div>
@@ -1649,6 +1695,7 @@
             <div class="input-hint">Solo números.</div>
           </div>
         </div>
+        <div class="form-group"><label>Patente / dominio</label><input type="text" id="a-plate" placeholder="AB 123 CD" maxlength="12" style="text-transform:uppercase"></div>
         <div class="form-group">
           <label>Tipo de vehículo</label>
           <div style="display:flex;gap:10px" id="a-type-cards">
@@ -1734,6 +1781,10 @@
             <span class="ctp-label">Total de reparación</span>
             <span class="ctp-val">$ 0</span>
           </div>
+        </div>
+        <div class="form-group">
+          <label>Repuestos utilizados</label>
+          <div id="a-parts-list" style="display:grid;gap:8px"><span style="font-size:12px;color:var(--muted)">Cargá inventario para asociar repuestos.</span></div>
         </div>
         <div class="form-actions">
           <button class="btn btn-primary" id="a-submit-btn" onclick="adminAddVehicle()">Registrar vehículo ✓</button>
@@ -1829,6 +1880,7 @@
         <div class="form-group"><label>Teléfono</label><input type="tel" id="e-phone" oninput="sanitizePhone(this)">
         </div>
       </div>
+      <div class="form-group"><label>Patente / dominio</label><input type="text" id="e-plate" maxlength="12" style="text-transform:uppercase"></div>
       <div class="form-row">
         <div class="form-group"><label>Marca</label><select id="e-carname"></select></div>
         <div class="form-group"><label>Año</label><select id="e-model"></select></div>
@@ -1867,10 +1919,15 @@
           <span class="ctp-val">$ 0</span>
         </div>
       </div>
+      <div class="form-group">
+        <label>Repuestos utilizados</label>
+        <div id="e-parts-list" style="display:grid;gap:8px"></div>
+      </div>
       <div class="form-actions" style="justify-content:space-between">
         <button class="btn-danger" onclick="deleteVehicle()">Eliminar</button>
         <div style="display:flex;gap:10px">
           <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+          <button class="btn-ghost" onclick="downloadVehiclePdf()">Descargar PDF</button>
           <button class="btn btn-primary" onclick="saveEdit()">Guardar cambios</button>
         </div>
       </div>
@@ -1897,6 +1954,7 @@
 
     // Normalized DB: vehicles now have cost_labor + cost_parts instead of single cost
     let db = { admins: [], vehicles: [] };
+    let inventoryItems = [];
     let currentAdmin = null;
     let currentToken = localStorage.getItem('mc_token') || null;
     let curFilter = 'todos';
@@ -1995,8 +2053,8 @@
     // ══════════════════════════════════════════════════════════════
     // NAVIGATION
     // ══════════════════════════════════════════════════════════════
-    function showLanding() { ['screen-client-register', 'screen-admin-login', 'screen-client-success', 'dashboard'].forEach(hide); show('landing'); }
-    function showScreen(id) { ['landing', 'screen-client-register', 'screen-admin-login', 'screen-client-success', 'dashboard'].forEach(hide); show(id); }
+    function showLanding() { ['screen-client-register', 'screen-tracking', 'screen-admin-login', 'screen-client-success', 'dashboard'].forEach(hide); show('landing'); }
+    function showScreen(id) { ['landing', 'screen-client-register', 'screen-tracking', 'screen-admin-login', 'screen-client-success', 'dashboard'].forEach(hide); show(id); }
     function show(id) { document.getElementById(id).classList.remove('hidden'); }
     function hide(id) { document.getElementById(id).classList.add('hidden'); }
 
@@ -2066,11 +2124,13 @@
     }
 
     async function registerClient() {
-      clearFErrs(['c-type-err', 'c-brand-err', 'c-year-err', 'c-entry-err', 'c-problem-err']);
+      clearFErrs(['c-plate-err', 'c-type-err', 'c-brand-err', 'c-year-err', 'c-entry-err', 'c-problem-err']);
       const type = selType.c, carname = document.getElementById('c-carname').value,
         model = document.getElementById('c-model').value, entry = document.getElementById('c-entry').value,
+        plate = document.getElementById('c-plate').value.trim().toUpperCase(),
         problem = document.getElementById('c-problem').value.trim();
       let ok = true;
+      if (!/^[A-Z0-9 -]{5,12}$/.test(plate)) { showFErr('c-plate-err', 'Ingresá una patente válida'); ok = false; }
       if (!type) { showFErr('c-type-err', 'Seleccioná el tipo'); ok = false; }
       if (!carname) { showFErr('c-brand-err', 'Seleccioná la marca'); ok = false; }
       if (!model) { showFErr('c-year-err', 'Seleccioná el año'); ok = false; }
@@ -2083,9 +2143,13 @@
       try {
         const res = await fetch(`${API_BASE}/api/vehicles`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ owner: document.getElementById('c-name').value.trim(), phone: document.getElementById('c-phone').value.trim(), type: toApiType(type), carname, year: model, km: '', problem })
+          body: JSON.stringify({ owner: document.getElementById('c-name').value.trim(), phone: document.getElementById('c-phone').value.trim(), plate, type: toApiType(type), carname, year: model, km: '', problem })
         });
         if (!res.ok) throw new Error();
+        const created = await res.json();
+        const trackingInfo = document.getElementById('client-tracking-info');
+        trackingInfo.innerHTML = `Guardá estos datos para consultar el estado: <strong>${escapeHtml(created.plate || plate)}</strong> + el teléfono registrado.`;
+        trackingInfo.style.display = 'block';
         loadData(); // refresh background
         showScreen('screen-client-success');
       } catch (err) {
@@ -2188,6 +2252,109 @@
 
     function adminLogout() { currentAdmin = null; currentToken = null; localStorage.removeItem('mc_token'); showLanding(); }
 
+    async function trackVehicle() {
+      const plate = document.getElementById('t-plate').value.trim().toUpperCase();
+      const phone = document.getElementById('t-phone').value.trim();
+      const btn = document.getElementById('tracking-btn');
+      const result = document.getElementById('tracking-result');
+      setAlert('tracking-alert', ''); result.innerHTML = '';
+      if (!/^[A-Z0-9 -]{5,12}$/.test(plate) || !/^\d{7,15}$/.test(phone)) {
+        setAlert('tracking-alert', 'Ingresá una patente y un teléfono válidos.', 'error');
+        return;
+      }
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Consultando…';
+      try {
+        const res = await fetch(`${API_BASE}/api/vehicles/track?plate=${encodeURIComponent(plate)}&phone=${encodeURIComponent(phone)}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setAlert('tracking-alert', data.error || 'No encontramos el vehículo.', 'error');
+          return;
+        }
+        const labels = { PENDIENTE: 'Pendiente', EN_REPARACION: 'En reparación', LISTO: 'Listo para retirar' };
+        const status = labels[data.status] || data.status;
+        const color = data.status === 'LISTO' ? 'var(--success)' : data.status === 'EN_REPARACION' ? '#60a5fa' : 'var(--accent)';
+        result.innerHTML = `<div class="glass" style="padding:20px;border-color:${color}">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">${escapeHtml(data.plate || plate)}</div>
+          <div style="font-family:'Bebas Neue';font-size:27px;margin:4px 0">${escapeHtml(data.carname)}</div>
+          <div style="font-size:18px;color:${color};font-weight:700">${escapeHtml(status)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:12px">Última actualización: ${new Date(data.updatedAt).toLocaleString('es-AR')}</div>
+          ${data.status === 'LISTO' ? `<div style="margin-top:12px;font-size:13px">Podés retirar el vehículo. Total registrado: ${formatARS((parseFloat(data.cost_labor) || 0) + (parseFloat(data.cost_parts) || 0))}</div>` : ''}
+        </div>`;
+      } catch (error) {
+        setAlert('tracking-alert', 'No se pudo conectar con el sistema.', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Consultar estado';
+      }
+    }
+
+    async function loadInventory() {
+      try {
+        const res = await fetch(`${API_BASE}/api/inventory`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        if (!res.ok) return;
+        inventoryItems = await res.json();
+        renderInventoryList();
+        renderPartsInputs('a');
+      } catch (error) {
+        console.error('Error loading inventory', error);
+      }
+    }
+
+    function renderInventoryList() {
+      const list = document.getElementById('inventory-list');
+      if (!inventoryItems.length) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">📦</div><p>No hay repuestos cargados.</p></div>';
+        return;
+      }
+      const owner = currentAdmin?.role === 'OWNER';
+      list.innerHTML = inventoryItems.map(item => {
+        const low = Number(item.quantity) <= Number(item.minimumStock);
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
+          <div><div style="font-weight:600;font-size:13px">${escapeHtml(item.name)}</div><div style="font-size:11px;color:var(--muted)">${escapeHtml(item.unit)} · mínimo ${item.minimumStock}</div></div>
+          <div style="text-align:right"><div style="font-family:'DM Mono';font-size:16px;color:${low ? 'var(--danger)' : 'var(--text)'}">${item.quantity}</div>${owner ? `<div style="display:flex;gap:5px;margin-top:5px"><button class="btn-ghost" onclick="adjustInventory(${item.id},'ENTRADA')">+ Entrada</button><button class="btn-ghost" onclick="adjustInventory(${item.id},'SALIDA')">− Salida</button></div>` : ''}</div>
+        </div>`;
+      }).join('');
+    }
+
+    async function createInventoryItem() {
+      const name = document.getElementById('inventory-name').value.trim();
+      const unit = document.getElementById('inventory-unit').value.trim() || 'unidad';
+      const quantity = Number(document.getElementById('inventory-quantity').value || 0);
+      const minimumStock = Number(document.getElementById('inventory-minimum').value || 0);
+      if (!name || quantity < 0 || minimumStock < 0) { setAlert('inventory-alert', 'Completá los datos del repuesto.', 'error'); return; }
+      const res = await fetch(`${API_BASE}/api/inventory`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` }, body: JSON.stringify({ name, unit, quantity, minimumStock }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setAlert('inventory-alert', data.error || 'No se pudo crear el repuesto.', 'error'); return; }
+      document.getElementById('inventory-name').value = '';
+      document.getElementById('inventory-quantity').value = '0';
+      await loadInventory();
+      setAlert('inventory-alert', 'Repuesto agregado.', 'success');
+    }
+
+    async function adjustInventory(id, type) {
+      const quantity = Number(window.prompt(type === 'ENTRADA' ? 'Cantidad que ingresa' : 'Cantidad que sale', '1'));
+      if (!Number.isInteger(quantity) || quantity <= 0) return;
+      const res = await fetch(`${API_BASE}/api/inventory/${id}/adjust`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` }, body: JSON.stringify({ type, quantity }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setAlert('inventory-alert', data.error || 'No se pudo actualizar el stock.', 'error'); return; }
+      await loadInventory();
+      setAlert('inventory-alert', 'Stock actualizado.', 'success');
+    }
+
+    function renderPartsInputs(prefix, selected = []) {
+      const list = document.getElementById(`${prefix}-parts-list`);
+      if (!list) return;
+      if (!inventoryItems.length) { list.innerHTML = '<span style="font-size:12px;color:var(--muted)">No hay repuestos disponibles.</span>'; return; }
+      const selectedById = Object.fromEntries((selected || []).map(part => [String(part.itemId), part.quantity]));
+      list.innerHTML = inventoryItems.map(item => `<label style="display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:var(--muted)">
+        <span>${escapeHtml(item.name)} <small>(${item.quantity} disponibles)</small></span>
+        <input data-part-prefix="${prefix}" data-item-id="${item.id}" type="number" min="0" max="1000" value="${selectedById[String(item.id)] || 0}" style="max-width:90px">
+      </label>`).join('');
+    }
+
+    function readParts(prefix) {
+      return [...document.querySelectorAll(`[data-part-prefix="${prefix}"]`)].map(input => ({ itemId: Number(input.dataset.itemId), quantity: Number(input.value || 0) })).filter(part => Number.isInteger(part.quantity) && part.quantity > 0);
+    }
+
     // ══════════════════════════════════════════════════════════════
     // DASHBOARD
     // ══════════════════════════════════════════════════════════════
@@ -2200,10 +2367,12 @@
       populateSelects([['a-carname', 'a-model'], ['e-carname', 'e-model']]);
       if (currentAdmin.role === 'OWNER') {
         document.getElementById('owner-panel').style.display = 'block';
+        document.getElementById('inventory-owner-controls').style.display = 'block';
       } else {
         document.getElementById('owner-panel').style.display = 'none';
+        document.getElementById('inventory-owner-controls').style.display = 'none';
       }
-      renderStats(); renderBilling(); renderTable();
+      renderStats(); renderBilling(); renderTable(); loadInventory(); renderPartsInputs('a');
     }
     function scrollToReg() { document.getElementById('admin-reg-section').scrollIntoView({ behavior: 'smooth' }); }
 
@@ -2360,7 +2529,7 @@
               </div>
               <div>
                 <div style="color:var(--text);font-weight:600;font-size:13px">${escapeHtml(v.carname) || '—'}</div>
-                <div style="color:var(--muted);font-size:11px">${escapeHtml(v.year?.toString()) || '—'}</div>
+                <div style="color:var(--muted);font-size:11px">${escapeHtml(v.plate) || 'Sin patente'} · ${escapeHtml(v.year?.toString()) || '—'}</div>
               </div>
             </div></td>
             <td>
@@ -2410,6 +2579,7 @@
     ${row('Propietario', v.owner, 'style="font-weight:bold"')}
     ${row('Teléfono', v.phone)}
     ${row('Tipo', toUiType(v.type))}
+    ${row('Patente', v.plate)}
     ${row('Marca', v.carname)}
     ${row('Año', v.year?.toString())}
     ${row('Fecha ingreso', v.entry)}
@@ -2430,11 +2600,12 @@
       setAlert('admin-reg-alert', '');
       const owner = document.getElementById('a-owner').value.trim();
       const phone = document.getElementById('a-phone').value.trim();
+      const plate = document.getElementById('a-plate').value.trim().toUpperCase();
       const type = selType.a;
       const carname = document.getElementById('a-carname').value;
       const model = document.getElementById('a-model').value;
-      if (!owner || !phone || !type || !carname) {
-        setAlert('admin-reg-alert', 'Completá: propietario, teléfono, tipo y marca.');
+      if (!owner || !phone || !plate || !type || !carname) {
+        setAlert('admin-reg-alert', 'Completá: propietario, teléfono, patente, tipo y marca.');
         shake('admin-reg-section'); return;
       }
       if (!validateExitDate('a')) return;
@@ -2449,14 +2620,14 @@
 
         const res = await fetch(`${API_BASE}/api/vehicles`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ owner, phone, type: toApiType(type), carname, year: model, km, entry, exit, problem, cost_labor, cost_parts, status: toApiStatus(status) })
+          body: JSON.stringify({ owner, phone, plate, type: toApiType(type), carname, year: model, km, entry, exit, problem, cost_labor, cost_parts, status: toApiStatus(status), parts: readParts('a') })
         });
 
         if (!res.ok) throw new Error();
 
         await loadData(); // refresh UI
         setAlert('admin-reg-alert', 'Vehículo registrado exitosamente.', 'success');
-        ['a-owner', 'a-phone', 'a-km', 'a-exit', 'a-problem', 'a-cost-labor', 'a-cost-parts'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        ['a-owner', 'a-phone', 'a-plate', 'a-km', 'a-exit', 'a-problem', 'a-cost-labor', 'a-cost-parts'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
         document.getElementById('a-carname').value = ''; document.getElementById('a-model').value = ''; document.getElementById('a-status').value = 'Pendiente';
         document.querySelectorAll('#a-type-cards .vehicle-card').forEach(c => {
           c.classList.remove('selected');
@@ -2464,6 +2635,7 @@
           const lb = c.querySelectorAll('div')[1]; if (lb) lb.style.color = 'var(--muted)';
         });
         selType.a = ''; updateCostTotal('a');
+        renderPartsInputs('a');
         showToast('Vehículo agregado al sistema.');
         setTimeout(() => setAlert('admin-reg-alert', ''), 3500);
       } catch (err) {
@@ -2482,6 +2654,7 @@
       document.getElementById('edit-id').value = id;
       document.getElementById('e-owner').value = v.owner || '';
       document.getElementById('e-phone').value = v.phone || '';
+      document.getElementById('e-plate').value = v.plate || '';
       document.getElementById('e-km').value = v.km || '';
       document.getElementById('e-entry').value = dateInputValue(v.entry);
       document.getElementById('e-exit').value = dateInputValue(v.exit);
@@ -2499,6 +2672,7 @@
         const ic = c.querySelector('div'); if (ic) ic.style.color = sel ? 'var(--accent)' : 'var(--muted)';
         const lb = c.querySelectorAll('div')[1]; if (lb) lb.style.color = sel ? 'var(--text)' : 'var(--muted)';
       });
+      renderPartsInputs('e', v.parts || []);
       updateEditPills(); updateCostTotal('e');
       show('edit-modal');
     }
@@ -2521,6 +2695,19 @@
 
     function closeModal() { hide('edit-modal'); }
 
+    async function downloadVehiclePdf() {
+      const id = document.getElementById('edit-id').value;
+      const res = await fetch(`${API_BASE}/api/vehicles/${id}/pdf`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+      if (!res.ok) { showToast('No se pudo generar el PDF', 'error'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `moncar-${id}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
     async function saveEdit() {
       if (!validateExitDate('e')) return;
       const id = document.getElementById('edit-id').value;
@@ -2529,6 +2716,7 @@
       const payload = {
         owner: document.getElementById('e-owner').value.trim(),
         phone: document.getElementById('e-phone').value.trim(),
+        plate: document.getElementById('e-plate').value.trim().toUpperCase(),
         type: toApiType(selType.e || db.vehicles[idx].type),
         carname: document.getElementById('e-carname').value,
         year: document.getElementById('e-model').value,
@@ -2539,6 +2727,7 @@
         exit: document.getElementById('e-exit').value,
         problem: document.getElementById('e-problem').value.trim(),
         status: toApiStatus(document.getElementById('e-status').value),
+        parts: readParts('e'),
       };
 
       try {

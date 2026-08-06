@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run vercel-build",
   "outputDirectory": "public",
   "functions": {
     "api/index.js": {
@@ -12,6 +12,12 @@
     {
       "source": "/api/:path*",
       "destination": "/api/index"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/cleanup-invites",
+      "schedule": "0 3 * * *"
     }
   ]
 }
