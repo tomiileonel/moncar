@@ -145,7 +145,7 @@ export const authController = {
                         },
                     });
                 });
-            } catch (error: any) {
+            } catch (error: unknown) {
                 if (error instanceof InviteAlreadyUsedError) {
                     res.status(403).json({ error: 'La invitación ya fue utilizada o expiró concurrentemente.' });
                     return;
