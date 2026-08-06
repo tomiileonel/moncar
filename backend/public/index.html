@@ -1612,14 +1612,28 @@
             <div class="billing-stat">
               <div class="lbl">Ingresos este mes</div>
               <div class="val" id="billing-current">$ 0</div>
-              <div class="billing-breakdown" id="billing-current-breakdown"></div>
             </div>
             <div class="billing-stat">
               <div class="lbl">Ingresos mes anterior</div>
               <div class="val green" id="billing-prev">$ 0</div>
-              <div class="billing-breakdown" id="billing-prev-breakdown"></div>
+            </div>
+            <div class="billing-stat" id="billing-pending-stat">
+              <div class="lbl">Trabajo en curso (Pendiente)</div>
+              <div class="val" style="color:var(--muted)" id="billing-pending">$ 0</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- OWNER PANEL -->
+      <div class="section-card" id="owner-panel" style="display:none; animation:fadeUp .5s ease .18s both">
+        <div class="section-title">Panel de Propietario</div>
+        <div id="owner-alert"></div>
+        <p style="font-size:14px;color:var(--muted);margin-bottom:15px">Generá un enlace de un solo uso para invitar a un nuevo mecánico al sistema.</p>
+        <button class="btn btn-outline" onclick="generateInvite()" id="btn-gen-invite">Generar Link de Invitación</button>
+        <div id="invite-result" style="margin-top:15px;display:none">
+          <input type="text" id="invite-link-input" readonly style="width:100%;margin-bottom:10px" onclick="this.select()">
+          <button class="btn btn-primary" onclick="copyInviteLink()">Copiar al Portapapeles</button>
         </div>
       </div>
 
@@ -2184,6 +2198,11 @@
       document.getElementById('dash-date').textContent = new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
       document.getElementById('a-entry').value = new Date().toISOString().split('T')[0];
       populateSelects([['a-carname', 'a-model'], ['e-carname', 'e-model']]);
+      if (currentAdmin.role === 'OWNER') {
+        document.getElementById('owner-panel').style.display = 'block';
+      } else {
+        document.getElementById('owner-panel').style.display = 'none';
+      }
       renderStats(); renderBilling(); renderTable();
     }
     function scrollToReg() { document.getElementById('admin-reg-section').scrollIntoView({ behavior: 'smooth' }); }
@@ -2192,7 +2211,7 @@
     // BILLING UTILS
     // ══════════════════════════════════════════════════════════════
     function monthKey(s) { const d = new Date(s + 'T12:00:00'); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }
-    function formatARS(v) { return '$ ' + Math.round(v).toLocaleString('es-AR'); }
+    function formatARS(v) { return '$ ' + Math.round(parseFloat(v) || 0).toLocaleString('es-AR'); }
 
     function getRevBreakdown() {
       // Returns { [monthKey]: { total, labor, parts } }
@@ -2209,35 +2228,21 @@
       return m;
     }
 
-    function renderBilling() {
+    async function renderBilling() {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/reports/revenue`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('billing-current').textContent = formatARS(data.currentMonth);
+          document.getElementById('billing-prev').textContent = formatARS(data.previousMonth);
+          document.getElementById('billing-pending').textContent = formatARS(data.currentMonthPending);
+        }
+      } catch(e) { console.error('Error fetching revenue', e); }
+
       const now = new Date();
-      const ck = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const pd = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const pk = `${pd.getFullYear()}-${String(pd.getMonth() + 1).padStart(2, '0')}`;
       const rev = getRevBreakdown();
-
-      const curData = rev[ck] || { total: 0, labor: 0, parts: 0 };
-      const prevData = rev[pk] || { total: 0, labor: 0, parts: 0 };
-
-      document.getElementById('billing-current').textContent = formatARS(curData.total);
-      document.getElementById('billing-prev').textContent = formatARS(prevData.total);
-
-      const mkBreakdown = (data, id) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        if (!data.total) { el.innerHTML = ''; return; }
-        el.innerHTML = `
-      <div class="billing-breakdown-item">
-        <div class="bd-lbl">Mano de obra</div>
-        <div class="bd-val">${formatARS(data.labor)}</div>
-      </div>
-      <div class="billing-breakdown-item">
-        <div class="bd-lbl">Repuestos</div>
-        <div class="bd-val">${formatARS(data.parts)}</div>
-      </div>`;
-      };
-      mkBreakdown(curData, 'billing-current-breakdown');
-      mkBreakdown(prevData, 'billing-prev-breakdown');
 
       // Bar chart
       const labels = [], values = [];
@@ -2567,6 +2572,37 @@
     }
 
     document.getElementById('edit-modal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+
+    async function generateInvite() {
+      const btn = document.getElementById('btn-gen-invite');
+      btn.disabled = true; btn.innerHTML = 'Generando...';
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/invites`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+          body: JSON.stringify({ role: 'MECHANIC' })
+        });
+        if (!res.ok) throw new Error('Error al generar invite');
+        const data = await res.json();
+        document.getElementById('invite-result').style.display = 'block';
+        document.getElementById('invite-link-input').value = data.inviteUrl;
+        setAlert('owner-alert', 'Enlace de invitación generado (expira en 24h).', 'success');
+      } catch (e) {
+        setAlert('owner-alert', 'Error generando invitación. Revise consola.', 'error');
+      } finally {
+        btn.disabled = false; btn.innerHTML = 'Generar Link de Invitación';
+      }
+    }
+
+    function copyInviteLink() {
+      const input = document.getElementById('invite-link-input');
+      input.select();
+      document.execCommand('copy');
+      showToast('Enlace copiado al portapapeles');
+    }
+
+    if (window.location.hash.startsWith('#token=')) {
+      setTimeout(() => switchAuthTab('signup'), 100);
+    }
   </script>
 </body>
 

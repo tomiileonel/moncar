@@ -92,9 +92,9 @@ export const authController = {
                 },
             });
 
-            const appUrl = process.env.APP_URL || 'http://localhost:3000';
+            const appUrl = process.env.APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://moncar-flax.vercel.app');
             res.status(201).json({
-                inviteUrl: `${appUrl}/admin/registrarse#token=${rawToken}`,
+                inviteUrl: `${appUrl}/#token=${rawToken}`,
                 expiresAt: invite.expiresAt,
             });
         } catch (error) {
