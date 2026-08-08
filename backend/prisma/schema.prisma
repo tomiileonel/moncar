@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -100,7 +100,7 @@ model Vehicle {
   @@index([plate, phone])
   // Cubre reports.controller.ts: getRevenueReport filtra por deleted+status
   // y rangea por entry en una sola condición — este compuesto evita que
-  // MySQL recurra a index merge entre los dos índices de arriba.
+  // Postgres recurra a index merge entre los dos índices de arriba.
   @@index([deleted, status, entry])
 }
 

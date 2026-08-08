@@ -23,7 +23,7 @@ A diferencia de las arquitecturas monolíticas pesadas, Moncar apuesta por la ag
 ### Backend
 - **Core:** Node.js + Express.js.
 - **Lenguaje:** TypeScript (Para un tipado estricto y predecible de extremo a extremo).
-- **Base de Datos & ORM:** MySQL interactuando a través de **Prisma ORM**.
+- **Base de Datos & ORM:** PostgreSQL (NeonDB) interactuando a través de **Prisma ORM**.
 - **Seguridad & Validación:** Zod (Esquemas), JWT (Autenticación), Bcrypt (Hasheo de contraseñas).
 
 ---
@@ -62,7 +62,7 @@ npm install
 Crear un archivo `.env` en el directorio `backend` con el siguiente contenido (basarse en `.env.example`):
 
 ```env
-DATABASE_URL="mysql://usuario:password@localhost:3306/moncar_db"
+DATABASE_URL="postgresql://usuario:password@host_neon:5432/neondb?sslmode=require"
 JWT_SECRET="tu_secreto_super_seguro_y_complejo"
 PORT=3000
 APP_URL="http://localhost:3000"
@@ -101,13 +101,7 @@ npm run dev
 
 En Vercel, configurar como mínimo `DATABASE_URL`, `JWT_SECRET`, `APP_URL` y `CRON_SECRET`. El build de producción ejecuta `prisma migrate deploy` antes de compilar.
 
-Para backups locales de MySQL, definir opcionalmente `MYSQL_USER` y `MYSQL_PASSWORD` y ejecutar:
-
-```powershell
-./scripts/backup-mysql.ps1
-```
-
-El script conserva los últimos 7 días en `backend/backups/` y esa carpeta no se versiona.
+Para backups locales de PostgreSQL, puedes utilizar herramientas nativas como `pg_dump` o scripts personalizados apuntando a tu instancia de NeonDB.
 
 ---
 
