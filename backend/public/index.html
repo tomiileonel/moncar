@@ -1556,9 +1556,9 @@
               placeholder="••••••••••">
             <div class="field-error" id="as-pass-err"></div>
           </div>
-          <div class="form-group"><label>PIN de Taller</label><input type="password" id="as-pin"
-              placeholder="PIN de acceso" onkeydown="if(event.key==='Enter')adminSignup()">
-            <div class="field-error" id="as-pin-err"></div>
+          <div id="signup-no-token-notice" class="field-error" style="display:none;margin-bottom:12px">
+            Este registro requiere un enlace de invitación válido. Pedile al dueño del taller que te
+            genere uno desde el Panel de Propietario.
           </div>
 
           <button class="btn btn-primary" style="width:100%;margin-top:8px" id="signup-btn"
@@ -1661,7 +1661,11 @@
       <div class="section-card" id="owner-panel" style="display:none; animation:fadeUp .5s ease .18s both">
         <div class="section-title">Panel de Propietario</div>
         <div id="owner-alert"></div>
-        <p style="font-size:14px;color:var(--muted);margin-bottom:15px">Generá un enlace de un solo uso para invitar a un nuevo mecánico al sistema.</p>
+        <p style="font-size:14px;color:var(--muted);margin-bottom:10px">Generá un enlace para invitar a un nuevo mecánico al sistema.</p>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:15px;cursor:pointer">
+          <input type="checkbox" id="invite-standing-toggle" style="width:auto">
+          Enlace reutilizable (varios mecánicos pueden usarlo hasta que lo revoques)
+        </label>
         <button class="btn btn-outline" onclick="generateInvite()" id="btn-gen-invite">Generar Link de Invitación</button>
         <div id="invite-result" style="margin-top:15px;display:none">
           <input type="text" id="invite-link-input" readonly style="width:100%;margin-bottom:10px" onclick="this.select()">
@@ -2188,16 +2192,17 @@
       const name = document.getElementById('as-name').value.trim();
       const email = document.getElementById('as-email').value.trim().toLowerCase();
       const pass = document.getElementById('as-pass').value;
-      const pin = document.getElementById('as-pin').value;
-      
       const inviteToken = currentInviteToken;
 
-      clearFErrs(['as-name-err', 'as-email-err', 'as-pass-err', 'as-pin-err']); setAlert('auth-alert', '');
+      clearFErrs(['as-name-err', 'as-email-err', 'as-pass-err']); setAlert('auth-alert', '');
       let ok = true;
+      if (!inviteToken) {
+        document.getElementById('signup-no-token-notice').style.display = 'block';
+        ok = false;
+      }
       if (!name) { showFErr('as-name-err', 'El nombre es requerido'); ok = false; }
       if (!/\S+@\S+\.\S+/.test(email)) { showFErr('as-email-err', 'Correo inválido'); ok = false; }
       if (pass.length < 6) { showFErr('as-pass-err', 'La contraseña debe tener al menos 6 caracteres'); ok = false; }
-      if (!inviteToken && !pin) { showFErr('as-pin-err', 'El PIN de taller es requerido'); ok = false; }
 
       if (!ok) { shake('auth-card'); return; }
 
@@ -2205,28 +2210,24 @@
       btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Creando cuenta…';
 
       try {
-        const url = inviteToken ? `${API_BASE}/api/auth/register` : `${API_BASE}/api/auth/register-pin`;
-        const body = inviteToken 
-            ? JSON.stringify({ name, email, password: pass, inviteToken })
-            : JSON.stringify({ name, email, password: pass, pin });
-
-        const res = await fetch(url, {
+        const res = await fetch(`${API_BASE}/api/auth/register`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body
+          body: JSON.stringify({ name, email, password: pass, inviteToken })
         });
         if (!res.ok) {
           const err = await res.json();
-          // Claude suggested generic error on PIN invalid
-          if (err.error === 'PIN de acceso inválido') {
-              showFErr('as-pin-err', err.error);
-          } else {
-              showFErr('as-email-err', err.error || 'Error al registrar');
-          }
+          showFErr('as-email-err', err.error || 'Error al registrar');
           shake('auth-card');
           return;
         }
-        setAlert('auth-alert', '¡Cuenta creada! Ahora podés iniciar sesión.', 'success');
-        setTimeout(() => { switchAuthTab('login'); document.getElementById('al-email').value = email; setAlert('auth-alert', ''); }, 1800);
+        const data = await res.json();
+        currentToken = data.token;
+        localStorage.setItem('mc_token', currentToken);
+        currentAdmin = data.admin;
+
+        setAlert('auth-alert', '¡Cuenta creada! Ingresando…', 'success');
+        await loadData();
+        openDashboard();
       } catch (err) {
         showToast('Error de conexión', 'error');
       } finally {
@@ -2783,17 +2784,20 @@
 
     async function generateInvite() {
       const btn = document.getElementById('btn-gen-invite');
+      const standing = document.getElementById('invite-standing-toggle').checked;
       btn.disabled = true; btn.innerHTML = 'Generando...';
       try {
         const res = await fetch(`${API_BASE}/api/auth/invites`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-          body: JSON.stringify({ role: 'MECHANIC' })
+          body: JSON.stringify({ role: 'MECHANIC', standing })
         });
         if (!res.ok) throw new Error('Error al generar invite');
         const data = await res.json();
         document.getElementById('invite-result').style.display = 'block';
         document.getElementById('invite-link-input').value = data.inviteUrl;
-        setAlert('owner-alert', 'Enlace de invitación generado (expira en 24h).', 'success');
+        setAlert('owner-alert', standing
+          ? 'Enlace reutilizable generado. Quedará activo hasta que lo revoques.'
+          : 'Enlace de invitación generado (un solo uso, expira en 7 días).', 'success');
       } catch (e) {
         setAlert('owner-alert', 'Error generando invitación. Revise consola.', 'error');
       } finally {

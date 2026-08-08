@@ -49,13 +49,14 @@ enum NotificationStatus {
 /// Admin is intentionally immutable (no updatedAt). Password changes
 /// create an audit trail via application logs, not DB timestamps.
 model Admin {
-  id        Int           @id @default(autoincrement())
-  name      String
-  email     String        @unique
-  password  String // bcrypt hash
-  role      AdminRole     @default(MECHANIC)
-  createdAt DateTime      @default(now())
-  invites   AdminInvite[] @relation("InviteIssuer")
+  id         Int                     @id @default(autoincrement())
+  name       String
+  email      String                  @unique
+  password   String // bcrypt hash
+  role       AdminRole               @default(MECHANIC)
+  createdAt  DateTime                @default(now())
+  invites    AdminInvite[]           @relation("InviteIssuer")
+  redemption AdminInviteRedemption?
 }
 
 model AdminInvite {
@@ -65,11 +66,34 @@ model AdminInvite {
   issuedBy   Admin     @relation("InviteIssuer", fields: [issuedById], references: [id])
   issuedById Int
   expiresAt  DateTime
-  usedAt     DateTime?
+  usedAt     DateTime? // single-use invites: set on first (and only) redemption
   createdAt  DateTime  @default(now())
+
+  // --- Standing invite support (replaces the shared ADMIN_REGISTER_SECRET PIN) ---
+  // Standing invites stay valid across multiple redemptions until revoked or maxUses
+  // is reached. Every redemption is still logged individually in AdminInviteRedemption,
+  // so a shared link never loses per-account traceability the way a static PIN did.
+  maxUses     Int?                     @default(1) // null = unlimited uses until revoked/expired
+  useCount    Int                      @default(0)
+  revokedAt   DateTime?
+  redemptions AdminInviteRedemption[]
 
   @@index([token])
   @@index([expiresAt])
+}
+
+/// One row per account created through a given invite — preserved even for
+/// standing (multi-use) invites, so revoking a link never erases who joined
+/// through it before revocation.
+model AdminInviteRedemption {
+  id        Int         @id @default(autoincrement())
+  invite    AdminInvite @relation(fields: [inviteId], references: [id])
+  inviteId  Int
+  admin     Admin       @relation(fields: [adminId], references: [id])
+  adminId   Int         @unique
+  createdAt DateTime    @default(now())
+
+  @@index([inviteId])
 }
 
 model Vehicle {
