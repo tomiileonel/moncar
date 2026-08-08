@@ -7,6 +7,7 @@ const router = Router();
 
 // Rutas de Autenticación delegadas al controlador
 router.post('/register', authRegisterRateLimiter, authController.register);
+router.post('/register-pin', authRegisterRateLimiter, authController.registerPin);
 router.post('/login', authLoginRateLimiter, authController.login);
 
 // Ruta para emitir invitaciones (solo OWNER)

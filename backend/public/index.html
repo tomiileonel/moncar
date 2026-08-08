@@ -1556,6 +1556,10 @@
               placeholder="••••••••••">
             <div class="field-error" id="as-pass-err"></div>
           </div>
+          <div class="form-group"><label>PIN de Taller</label><input type="password" id="as-pin"
+              placeholder="PIN de acceso" onkeydown="if(event.key==='Enter')adminSignup()">
+            <div class="field-error" id="as-pin-err"></div>
+          </div>
 
           <button class="btn btn-primary" style="width:100%;margin-top:8px" id="signup-btn"
             onclick="adminSignup()">Crear cuenta</button>
@@ -1886,9 +1890,13 @@
         <div class="form-group"><label>Año</label><select id="e-model"></select></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Kilómetros</label><input type="number" id="e-km" min="0"
+        <div class="form-group"><label>Km (Entrada)</label><input type="number" id="e-km" min="0"
             oninput="sanitizePositiveInt(this); updateEditPills()"></div>
-        <div class="form-group"><label>Estado</label><select id="e-status">
+        <div class="form-group"><label>Km (Salida)</label><input type="number" id="e-km-salida" min="0"
+            oninput="sanitizePositiveInt(this)"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="width: 100%"><label>Estado</label><select id="e-status">
             <option value="Pendiente">Pendiente</option>
             <option value="En reparación">En reparación</option>
             <option value="Listo">Listo</option>
@@ -1957,6 +1965,7 @@
     let inventoryItems = [];
     let currentAdmin = null;
     let currentToken = localStorage.getItem('mc_token') || null;
+    let currentInviteToken = '';
     let curFilter = 'todos';
     let selType = { c: '', a: '', e: '' };
 
@@ -2179,18 +2188,16 @@
       const name = document.getElementById('as-name').value.trim();
       const email = document.getElementById('as-email').value.trim().toLowerCase();
       const pass = document.getElementById('as-pass').value;
+      const pin = document.getElementById('as-pin').value;
       
-      let inviteToken = '';
-      if (window.location.hash.startsWith('#token=')) {
-          inviteToken = window.location.hash.replace('#token=', '');
-      }
+      const inviteToken = currentInviteToken;
 
-      clearFErrs(['as-name-err', 'as-email-err', 'as-pass-err']); setAlert('auth-alert', '');
+      clearFErrs(['as-name-err', 'as-email-err', 'as-pass-err', 'as-pin-err']); setAlert('auth-alert', '');
       let ok = true;
       if (!name) { showFErr('as-name-err', 'El nombre es requerido'); ok = false; }
       if (!/\S+@\S+\.\S+/.test(email)) { showFErr('as-email-err', 'Correo inválido'); ok = false; }
       if (pass.length < 6) { showFErr('as-pass-err', 'La contraseña debe tener al menos 6 caracteres'); ok = false; }
-      if (!inviteToken) { setAlert('auth-alert', 'No se encontró un token de invitación válido en la URL.'); shake('auth-card'); return; }
+      if (!inviteToken && !pin) { showFErr('as-pin-err', 'El PIN de taller es requerido'); ok = false; }
 
       if (!ok) { shake('auth-card'); return; }
 
@@ -2198,17 +2205,27 @@
       btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Creando cuenta…';
 
       try {
-        const res = await fetch(`${API_BASE}/api/auth/register`, {
+        const url = inviteToken ? `${API_BASE}/api/auth/register` : `${API_BASE}/api/auth/register-pin`;
+        const body = inviteToken 
+            ? JSON.stringify({ name, email, password: pass, inviteToken })
+            : JSON.stringify({ name, email, password: pass, pin });
+
+        const res = await fetch(url, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password: pass, inviteToken })
+          body
         });
         if (!res.ok) {
           const err = await res.json();
-          showFErr('as-email-err', err.error || 'Error al registrar'); shake('auth-card');
+          // Claude suggested generic error on PIN invalid
+          if (err.error === 'PIN de acceso inválido') {
+              showFErr('as-pin-err', err.error);
+          } else {
+              showFErr('as-email-err', err.error || 'Error al registrar');
+          }
+          shake('auth-card');
           return;
         }
         setAlert('auth-alert', '¡Cuenta creada! Ahora podés iniciar sesión.', 'success');
-        window.history.replaceState(null, null, ' '); // Limpia el token de la URL
         setTimeout(() => { switchAuthTab('login'); document.getElementById('al-email').value = email; setAlert('auth-alert', ''); }, 1800);
       } catch (err) {
         showToast('Error de conexión', 'error');
@@ -2656,6 +2673,7 @@
       document.getElementById('e-phone').value = v.phone || '';
       document.getElementById('e-plate').value = v.plate || '';
       document.getElementById('e-km').value = v.km || '';
+      document.getElementById('e-km-salida').value = v.km_salida || '';
       document.getElementById('e-entry').value = dateInputValue(v.entry);
       document.getElementById('e-exit').value = dateInputValue(v.exit);
       document.getElementById('e-problem').value = v.problem || '';
@@ -2721,6 +2739,7 @@
         carname: document.getElementById('e-carname').value,
         year: document.getElementById('e-model').value,
         km: document.getElementById('e-km').value,
+        km_salida: document.getElementById('e-km-salida').value,
         cost_labor: document.getElementById('e-cost-labor').value,
         cost_parts: document.getElementById('e-cost-parts').value,
         entry: document.getElementById('e-entry').value,
@@ -2790,8 +2809,10 @@
     }
 
     if (window.location.hash.startsWith('#token=')) {
+      currentInviteToken = window.location.hash.replace('#token=', '');
       showScreen('screen-admin-login');
       setTimeout(() => switchAuthTab('signup'), 100);
+      history.replaceState(null, '', window.location.pathname + window.location.search);
     }
   </script>
 </body>

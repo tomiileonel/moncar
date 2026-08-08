@@ -79,7 +79,8 @@ model Vehicle {
   type          VehicleType     @default(AUTO)
   carname       String
   year          Int?
-  km            Int?
+  km            Int?            // kilometraje al ingresar el vehículo
+  km_salida     Int?            // kilometraje al retirar el vehículo
   entry         DateTime
   exit          DateTime?
   problem       String          @db.Text

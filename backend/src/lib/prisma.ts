@@ -12,6 +12,4 @@ export const prisma =
     log: process.env['VERCEL'] ? ['error', 'warn'] : ['query', 'error', 'warn'],
   });
 
-if (process.env['NODE_ENV'] !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
+globalForPrisma.prisma = prisma;

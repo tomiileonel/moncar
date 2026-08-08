@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 
-import { APP_URL, JWT_SECRET } from '../config.js';
+import { APP_URL, JWT_SECRET, ADMIN_REGISTER_SECRET } from '../config.js';
 import { prisma } from '../lib/prisma.js';
 import type { AdminPayload, AuthRequest } from '../middleware/auth.js';
 
@@ -28,6 +28,13 @@ const registerSchema = z.object({
     email: normalizedEmailSchema,
     password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
     inviteToken: z.string().min(1, "El token de invitación es obligatorio"),
+});
+
+const registerPinSchema = z.object({
+    name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres"),
+    email: normalizedEmailSchema,
+    password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+    pin: z.string().min(1, "El PIN es obligatorio"),
 });
 
 function hashToken(raw: string): string {
@@ -162,6 +169,44 @@ export const authController = {
                 res.status(409).json({ error: 'Esta invitación ya fue utilizada' });
                 return;
             }
+            next(error);
+        }
+    },
+
+    registerPin: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const { name, email, password, pin } = registerPinSchema.parse(req.body);
+
+            // 1. Validar el PIN estático
+            if (pin !== ADMIN_REGISTER_SECRET) {
+                // Claude advirtió: El mensaje de error debe ser genérico y no dar pistas
+                res.status(401).json({ error: 'PIN de acceso inválido' });
+                return;
+            }
+
+            // 2. Verificar que el email no exista
+            const existingAdmin = await prisma.admin.findUnique({ where: { email } });
+            if (existingAdmin) {
+                // Mensaje genérico para no filtrar si el error es el PIN o el email,
+                // aunque en PIN inválido se corta antes, mantener la ambigüedad aquí
+                // no es tan crucial, pero igual respetaremos lo pedido.
+                res.status(400).json({ error: 'Este correo ya está registrado.' });
+                return;
+            }
+
+            // 3. Crear el administrador SIEMPRE con rol MECHANIC
+            const hashedPassword = await bcrypt.hash(password, 10);
+            await prisma.admin.create({
+                data: {
+                    name,
+                    email,
+                    password: hashedPassword,
+                    role: 'MECHANIC', // Hardcodeado como literal, según requerimiento de seguridad
+                },
+            });
+
+            res.status(201).json({ message: 'Cuenta creada exitosamente' });
+        } catch (error) {
             next(error);
         }
     }

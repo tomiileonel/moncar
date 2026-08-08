@@ -13,6 +13,20 @@ export class InsufficientStockError extends Error {
   }
 }
 
+export class InventoryItemNotFoundError extends Error {
+  constructor(itemId: number) {
+    super(`El repuesto #${itemId} no existe`);
+    this.name = 'InventoryItemNotFoundError';
+  }
+}
+
+export class InventoryItemInactiveError extends Error {
+  constructor(itemId: number) {
+    super(`El repuesto #${itemId} está inactivo`);
+    this.name = 'InventoryItemInactiveError';
+  }
+}
+
 /**
  * Replaces the parts associated with a vehicle and applies only the delta to
  * inventory. Every stock change and line-item change runs in the caller's
@@ -42,9 +56,8 @@ export async function replaceVehicleParts(
 
   for (const part of requested.values()) {
     const item = itemById.get(part.itemId);
-    if (!item || !item.active) {
-      throw new Error(`El repuesto ${part.itemId} no existe o está inactivo`);
-    }
+    if (!item) throw new InventoryItemNotFoundError(part.itemId);
+    if (!item.active) throw new InventoryItemInactiveError(part.itemId);
   }
 
   const currentByItem = new Map(existing.map((part) => [part.itemId, part]));
@@ -52,7 +65,7 @@ export async function replaceVehicleParts(
 
   for (const itemId of allItemIds) {
     const item = itemById.get(itemId);
-    if (!item) throw new Error(`El repuesto ${itemId} no existe`);
+    if (!item) throw new InventoryItemNotFoundError(itemId);
 
     const before = currentByItem.get(itemId)?.quantity ?? 0;
     const after = requested.get(itemId)?.quantity ?? 0;

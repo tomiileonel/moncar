@@ -25,3 +25,4 @@ export const APP_URL = process.env['APP_URL']
   || (process.env['VERCEL_URL'] ? `https://${process.env['VERCEL_URL']}` : `http://localhost:${PORT}`);
 export const CRON_SECRET = process.env['CRON_SECRET'] || '';
 export const NOTIFICATION_WEBHOOK_URL = process.env['NOTIFICATION_WEBHOOK_URL'] || '';
+export const ADMIN_REGISTER_SECRET = process.env['ADMIN_REGISTER_SECRET'] || '';

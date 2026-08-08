@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
-import { InsufficientStockError } from '../services/inventory.service.js';
+import { InsufficientStockError, InventoryItemNotFoundError, InventoryItemInactiveError } from '../services/inventory.service.js';
 
 export function errorHandler(
   err: unknown,
@@ -9,8 +9,21 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
+  // Conflicto de negocio, no un fallo del servidor: el mecánico pidió más
+  // repuesto del que hay disponible. 409 porque el estado actual del
+  // inventario impide completar la operación tal como fue solicitada.
   if (err instanceof InsufficientStockError) {
     res.status(409).json({ error: err.message });
+    return;
+  }
+
+  if (err instanceof InventoryItemInactiveError) {
+    res.status(409).json({ error: err.message });
+    return;
+  }
+
+  if (err instanceof InventoryItemNotFoundError) {
+    res.status(400).json({ error: err.message });
     return;
   }
 
