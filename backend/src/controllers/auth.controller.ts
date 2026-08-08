@@ -105,11 +105,13 @@ export const authController = {
     register: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         try {
             const { name, email, password, inviteToken } = registerSchema.parse(req.body);
-            
             const tokenHash = hashToken(inviteToken);
 
-            const invite = await prisma.adminInvite.findUnique({ where: { token: tokenHash } });
-            if (!invite || invite.usedAt || invite.expiresAt < new Date()) {
+            // Verificación rápida "optimista" (buena UX: 403 temprano si el
+            // token nunca existió). NO es la fuente de verdad contra la race
+            // condition — eso lo hace el updateMany condicional de abajo.
+            const invitePreview = await prisma.adminInvite.findUnique({ where: { token: tokenHash } });
+            if (!invitePreview || invitePreview.usedAt || invitePreview.expiresAt < new Date()) {
                 res.status(403).json({ error: 'Invitación inválida o expirada' });
                 return;
             }
@@ -120,40 +122,46 @@ export const authController = {
                 return;
             }
 
+            // bcrypt.hash es deliberadamente lento (~100-200ms) — es la ventana
+            // donde dos requests con el mismo token pueden colarse si solo
+            // validamos usedAt antes de la transacción. Por eso la revalidación
+            // real ocurre DENTRO de la transacción, vía updateMany condicional:
+            // solo una de las dos requests concurrentes logra marcar usedAt.
             const hashedPassword = await bcrypt.hash(password, 10);
 
-            try {
-                await prisma.$transaction(async (tx) => {
-                    // Update condicional atómico: Si otro request paralelo ya la marcó, count será 0.
-                    // Esto evita el TOCTOU dado que la DB serializa estos updates condicionales.
-                    const updateResult = await tx.adminInvite.updateMany({
-                        where: { id: invite.id, usedAt: null, expiresAt: { gt: new Date() } },
-                        data: { usedAt: new Date() },
-                    });
-
-                    if (updateResult.count === 0) {
-                        throw new InviteAlreadyUsedError();
-                    }
-
-                    await tx.admin.create({
-                        data: {
-                            name,
-                            email,
-                            password: hashedPassword,
-                            role: invite.role,
-                        },
-                    });
+            const admin = await prisma.$transaction(async (tx) => {
+                // Atómico: MySQL/Postgres garantiza que solo una transacción
+                // concurrente puede hacer este UPDATE con éxito (count === 1).
+                const claim = await tx.adminInvite.updateMany({
+                    where: {
+                        id: invitePreview.id,
+                        usedAt: null,
+                        expiresAt: { gt: new Date() },
+                    },
+                    data: { usedAt: new Date() },
                 });
-            } catch (error: unknown) {
-                if (error instanceof InviteAlreadyUsedError) {
-                    res.status(403).json({ error: 'La invitación ya fue utilizada o expiró concurrentemente.' });
-                    return;
+
+                if (claim.count === 0) {
+                    // Perdió la carrera contra otra request, o expiró justo ahora.
+                    throw new Error('INVITE_ALREADY_CLAIMED');
                 }
-                throw error;
-            }
+
+                return tx.admin.create({
+                    data: {
+                        name,
+                        email,
+                        password: hashedPassword,
+                        role: invitePreview.role,
+                    },
+                });
+            });
 
             res.status(201).json({ message: 'Cuenta creada exitosamente' });
         } catch (error) {
+            if (error instanceof Error && error.message === 'INVITE_ALREADY_CLAIMED') {
+                res.status(409).json({ error: 'Esta invitación ya fue utilizada' });
+                return;
+            }
             next(error);
         }
     }
