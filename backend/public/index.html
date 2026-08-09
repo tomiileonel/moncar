@@ -1940,6 +1940,7 @@
         <div style="display:flex;gap:10px">
           <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
           <button class="btn-ghost" onclick="downloadVehiclePdf()">Descargar PDF</button>
+          <button class="btn-ghost" onclick="generateVehicleQr()">QR de historial</button>
           <button class="btn btn-primary" onclick="saveEdit()">Guardar cambios</button>
         </div>
       </div>
@@ -2713,6 +2714,47 @@
     }
 
     function closeModal() { hide('edit-modal'); }
+
+    async function generateVehicleQr() {
+      const id = document.getElementById('edit-id').value;
+      try {
+        const res = await fetch(`${API_BASE}/api/vehicles/${id}/qr`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { showToast(data.error || 'No se pudo generar el QR', 'error'); return; }
+
+        if (data.exists) {
+          // Ya había un QR vigente: el token crudo no se puede reexhibir
+          // (solo persiste el hash). Se informa y se ofrece revocar.
+          const revoke = confirm(`${data.message}\n\n¿Querés revocarlo ahora para generar uno nuevo?`);
+          if (revoke) {
+            const del = await fetch(`${API_BASE}/api/vehicles/${id}/qr`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            if (del.ok) {
+              showToast('QR anterior revocado. Generá uno nuevo.');
+            } else {
+              showToast('No se pudo revocar el QR anterior', 'error');
+            }
+          }
+          return;
+        }
+
+        // Copia el link al portapapeles y lo muestra — es la única vez que
+        // el token crudo está disponible, no se puede recuperar después.
+        try {
+          await navigator.clipboard.writeText(data.historyUrl);
+          showToast('Link de historial copiado al portapapeles');
+        } catch {
+          prompt('Copiá este link (no se podrá volver a mostrar):', data.historyUrl);
+        }
+      } catch (err) {
+        showToast('Error de conexión', 'error');
+      }
+    }
 
     async function downloadVehiclePdf() {
       const id = document.getElementById('edit-id').value;

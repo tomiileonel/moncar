@@ -66,20 +66,22 @@ model AdminInvite {
   issuedBy   Admin     @relation("InviteIssuer", fields: [issuedById], references: [id])
   issuedById Int
   expiresAt  DateTime
-  usedAt     DateTime? // single-use invites: set on first (and only) redemption
+  usedAt     DateTime? // set on first redemption; kept for backward-compat queries, not the source of truth for reuse
   createdAt  DateTime  @default(now())
 
-  // --- Standing invite support (replaces the shared ADMIN_REGISTER_SECRET PIN) ---
-  // Standing invites stay valid across multiple redemptions until revoked or maxUses
-  // is reached. Every redemption is still logged individually in AdminInviteRedemption,
-  // so a shared link never loses per-account traceability the way a static PIN did.
-  maxUses     Int?                     @default(1) // null = unlimited uses until revoked/expired
+  // maxUses: null = ilimitado hasta expiresAt/revokedAt. 1 = comportamiento
+  // "de un solo uso" clásico, expresado en el mismo modelo en vez de un
+  // booleano paralelo. useCount se incrementa atómicamente en cada canje;
+  // AdminInviteRedemption preserva quién se registró con cada token, aún
+  // después de revocado.
+  maxUses     Int?                     @default(1)
   useCount    Int                      @default(0)
   revokedAt   DateTime?
   redemptions AdminInviteRedemption[]
 
   @@index([token])
   @@index([expiresAt])
+  @@index([usedAt])
 }
 
 /// One row per account created through a given invite — preserved even for
@@ -189,4 +191,14 @@ model Notification {
 
   @@index([vehicleId, createdAt])
   @@index([status, createdAt])
+}
+
+model VehicleQrToken {
+  id        Int       @id @default(autoincrement())
+  token     String    @unique // sha256 hex digest, el token crudo nunca se persiste
+  plate     String
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@index([plate, revokedAt])
 }

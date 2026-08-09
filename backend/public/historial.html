@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+ 
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MONCAR — Historial del vehículo</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #2a2a2a;
+      --accent: #e8b84b;
+      --accent-glow: rgba(232, 184, 75, 0.2);
+      --text: #f0ede8;
+      --muted: #666;
+      --success: #4be87a;
+      --radius: 12px;
+    }
+ 
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+ 
+    .mesh-bg {
+      background:
+        radial-gradient(ellipse 80% 60% at 50% -5%, rgba(232, 184, 75, .12) 0%, transparent 70%),
+        var(--bg);
+      min-height: 100vh;
+    }
+ 
+    .wrap { max-width: 640px; margin: 0 auto; padding: 48px 20px 80px; }
+ 
+    .logo {
+      text-align: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 40px;
+      letter-spacing: .05em;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+ 
+    .logo span { color: var(--text); }
+ 
+    .subtitle {
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 36px;
+    }
+ 
+    .plate-badge {
+      display: block;
+      width: fit-content;
+      margin: 0 auto 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--accent);
+      border-radius: 10px;
+      padding: 10px 24px;
+      font-family: 'DM Mono', monospace;
+      font-size: 20px;
+      letter-spacing: .1em;
+    }
+ 
+    .visit-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      margin-bottom: 16px;
+      position: relative;
+      animation: fadeUp .4s ease both;
+    }
+ 
+    .visit-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 3px; height: 100%;
+      background: var(--accent);
+      border-radius: var(--radius) 0 0 var(--radius);
+    }
+ 
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+ 
+    .visit-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      gap: 12px;
+    }
+ 
+    .visit-date { font-family: 'Bebas Neue'; font-size: 20px; color: var(--text); }
+ 
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+ 
+    .visit-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      font-size: 13px;
+    }
+ 
+    .visit-row:last-child { border-bottom: none; }
+ 
+    .visit-row .k {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+ 
+    .visit-row .v { color: var(--text); font-weight: 500; text-align: right; max-width: 60%; }
+ 
+    .problem-block { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+ 
+    .problem-block .k {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 6px;
+    }
+ 
+    .parts-list { margin-top: 10px; font-size: 12px; color: var(--muted); }
+    .parts-list li { margin-top: 3px; }
+ 
+    .state { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .state-icon { font-size: 38px; margin-bottom: 14px; opacity: .3; }
+ 
+    .spinner {
+      width: 22px; height: 22px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+ 
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+ 
+<body class="mesh-bg">
+  <div class="wrap">
+    <div class="logo">MON<span>CAR</span></div>
+    <div class="subtitle">Historial del vehículo</div>
+    <div id="content">
+      <div class="state">
+        <div class="spinner"></div>
+        <p>Cargando historial…</p>
+      </div>
+    </div>
+  </div>
+ 
+  <script>
+    const API_BASE = window.location.origin;
+ 
+    function escapeHtml(str) {
+      if (!str) return '';
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+ 
+    function formatARS(v) {
+      return '$ ' + Math.round(parseFloat(v) || 0).toLocaleString('es-AR');
+    }
+ 
+    function formatDate(iso) {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+ 
+    const TYPE_LABEL = { AUTO: 'Auto', CAMIONETA: 'Camioneta', CAMION: 'Camión' };
+    const STATUS_META = {
+      PENDIENTE: { label: 'Pendiente', bg: 'rgba(245,158,11,.12)', c: '#f59e0b', b: 'rgba(245,158,11,.3)' },
+      EN_REPARACION: { label: 'En reparación', bg: 'rgba(96,165,250,.12)', c: '#60a5fa', b: 'rgba(96,165,250,.3)' },
+      LISTO: { label: 'Completado', bg: 'rgba(75,232,122,.12)', c: 'var(--success)', b: 'rgba(75,232,122,.3)' },
+    };
+ 
+    function badgeHTML(status) {
+      const s = STATUS_META[status] || STATUS_META.PENDIENTE;
+      return `<span class="badge" style="background:${s.bg};color:${s.c};border:1px solid ${s.b}">${s.label}</span>`;
+    }
+ 
+    function renderError(message) {
+      document.getElementById('content').innerHTML = `
+        <div class="state">
+          <div class="state-icon">⚠</div>
+          <p>${escapeHtml(message)}</p>
+        </div>`;
+    }
+ 
+    function renderVisits(data) {
+      const content = document.getElementById('content');
+ 
+      if (!data.visits.length) {
+        content.innerHTML = `<div class="state"><div class="state-icon">🚗</div><p>Todavía no hay visitas registradas para este vehículo.</p></div>`;
+        return;
+      }
+ 
+      const plateHtml = `<div class="plate-badge">${escapeHtml(data.plate)}</div>`;
+ 
+      const visitsHtml = data.visits.map((v, i) => {
+        const hasCosts = v.cost_labor !== undefined;
+        const total = hasCosts ? (parseFloat(v.cost_labor) || 0) + (parseFloat(v.cost_parts) || 0) : null;
+        return `
+        <div class="visit-card" style="animation-delay:${i * 0.05}s">
+          <div class="visit-header">
+            <div>
+              <div class="visit-date">${formatDate(v.entry)}</div>
+              <div style="font-size:12px;color:var(--muted)">${escapeHtml(v.carname)}${v.year ? ' · ' + v.year : ''} · ${escapeHtml(TYPE_LABEL[v.type] || v.type)}</div>
+            </div>
+            ${badgeHTML(v.status)}
+          </div>
+          <div class="visit-row"><span class="k">Km ingreso</span><span class="v">${v.km ? Number(v.km).toLocaleString('es-AR') + ' km' : '—'}</span></div>
+          <div class="visit-row"><span class="k">Km salida</span><span class="v">${v.km_salida ? Number(v.km_salida).toLocaleString('es-AR') + ' km' : '—'}</span></div>
+          <div class="visit-row"><span class="k">Fecha salida</span><span class="v">${v.exit ? formatDate(v.exit) : 'Pendiente'}</span></div>
+          ${hasCosts ? `<div class="visit-row"><span class="k">Total</span><span class="v" style="color:var(--accent);font-family:'DM Mono'">${formatARS(total)}</span></div>` : ''}
+          <div class="problem-block">
+            <span class="k">Motivo de la visita</span>
+            <span style="font-size:13px;color:var(--text)">${escapeHtml(v.problem)}</span>
+          </div>
+          ${v.parts && v.parts.length ? `
+            <div class="parts-list">
+              <span class="k" style="display:block;margin-bottom:4px">Repuestos utilizados</span>
+              <ul style="list-style:none;padding:0">
+                ${v.parts.map(p => `<li>• ${escapeHtml(p.name)} — ${p.quantity} ${escapeHtml(p.unit)}</li>`).join('')}
+              </ul>
+            </div>` : ''}
+        </div>`;
+      }).join('');
+ 
+      content.innerHTML = plateHtml + visitsHtml;
+    }
+ 
+    async function loadHistory() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+ 
+      if (!token) {
+        renderError('Enlace inválido: falta el código de acceso.');
+        return;
+      }
+ 
+      try {
+        const res = await fetch(`${API_BASE}/api/vehicles/history?token=${encodeURIComponent(token)}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          renderError(data.error || 'No pudimos cargar el historial.');
+          return;
+        }
+        const data = await res.json();
+        renderVisits(data);
+      } catch (err) {
+        renderError('No se pudo conectar con el sistema.');
+      }
+    }
+ 
+    loadHistory();
+  </script>
+</body>
+ 
+</html>
