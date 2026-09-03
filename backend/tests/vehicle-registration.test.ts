@@ -125,6 +125,40 @@ describe('Vehicle Registration - Client vs Admin Schema Constraints', () => {
     expect(() => clientCreateSchema.parse(payload)).toThrow();
     expect(() => clientCreateSchema.parse({ ...payload, phone: '1123456789' })).not.toThrow();
   });
+
+  it('should reproduce and validate fix for registerClient frontend contract', () => {
+    // Exact payload before fix (hardcoded km: '')
+    const payloadBeforeFix = {
+      owner: 'Juan Rodríguez',
+      phone: '1145223344',
+      plate: 'AB123CD',
+      type: 'AUTO',
+      carname: 'Toyota',
+      year: '2020',
+      km: '',
+      problem: 'Ruido en el motor',
+    };
+
+    const resultBefore = clientCreateSchema.safeParse(payloadBeforeFix);
+    expect(resultBefore.success).toBe(false);
+    if (!resultBefore.success) {
+      expect(resultBefore.error.issues[0]?.path).toEqual(['km']);
+      expect(resultBefore.error.issues[0]?.message).toBe('El kilometraje es requerido');
+    }
+
+    // Exact payload after fix (c-km collected from user)
+    const payloadAfterFix = {
+      ...payloadBeforeFix,
+      km: '45000',
+    };
+
+    const resultAfter = clientCreateSchema.safeParse(payloadAfterFix);
+    expect(resultAfter.success).toBe(true);
+    if (resultAfter.success) {
+      expect(resultAfter.data.km).toBe(45000);
+      expect(resultAfter.data.plate).toBe('AB123CD');
+    }
+  });
 });
 
 describe('Error Handler Response Mapping', () => {

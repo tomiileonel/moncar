@@ -1496,8 +1496,14 @@
               <div class="field-error" id="c-year-err"></div>
             </div>
           </div>
-          <div class="form-group"><label>Fecha de ingreso</label><input type="date" id="c-entry">
-            <div class="field-error" id="c-entry-err"></div>
+          <div class="form-row">
+            <div class="form-group"><label>Fecha de ingreso</label><input type="date" id="c-entry">
+              <div class="field-error" id="c-entry-err"></div>
+            </div>
+            <div class="form-group"><label>Kilometraje</label><input type="number" id="c-km" placeholder="ej. 45000" min="0"
+                oninput="sanitizePositiveInt(this)">
+              <div class="field-error" id="c-km-err"></div>
+            </div>
           </div>
           <div class="form-group"><label>Problema / motivo de visita</label><textarea id="c-problem"
               placeholder="Describí con detalle el problema, síntomas, ruidos u otros indicios…"></textarea>
@@ -2138,10 +2144,11 @@
     }
 
     async function registerClient() {
-      clearFErrs(['c-plate-err', 'c-type-err', 'c-brand-err', 'c-year-err', 'c-entry-err', 'c-problem-err']);
+      clearFErrs(['c-plate-err', 'c-type-err', 'c-brand-err', 'c-year-err', 'c-entry-err', 'c-km-err', 'c-problem-err']);
       const type = selType.c, carname = document.getElementById('c-carname').value,
         model = document.getElementById('c-model').value, entry = document.getElementById('c-entry').value,
         plate = document.getElementById('c-plate').value.trim().toUpperCase(),
+        km = document.getElementById('c-km') ? document.getElementById('c-km').value.trim() : '',
         problem = document.getElementById('c-problem').value.trim();
       let ok = true;
       if (!/^[A-Z0-9 -]{5,12}$/.test(plate)) { showFErr('c-plate-err', 'Ingresá una patente válida'); ok = false; }
@@ -2149,6 +2156,7 @@
       if (!carname) { showFErr('c-brand-err', 'Seleccioná la marca'); ok = false; }
       if (!model) { showFErr('c-year-err', 'Seleccioná el año'); ok = false; }
       if (!entry) { showFErr('c-entry-err', 'Ingresá la fecha'); ok = false; }
+      if (!km || Number(km) < 0) { showFErr('c-km-err', 'El kilometraje es requerido'); ok = false; }
       if (!problem) { showFErr('c-problem-err', 'Describí el problema'); ok = false; }
       if (!ok) { shake('c-step2'); return; }
       const btn = document.getElementById('c-submit-btn');
@@ -2157,9 +2165,20 @@
       try {
         const res = await fetch(`${API_BASE}/api/vehicles`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ owner: document.getElementById('c-name').value.trim(), phone: document.getElementById('c-phone').value.trim(), plate, type: toApiType(type), carname, year: model, km: '', problem })
+          body: JSON.stringify({ owner: document.getElementById('c-name').value.trim(), phone: document.getElementById('c-phone').value.trim(), plate, type: toApiType(type), carname, year: model, km, problem })
         });
-        if (!res.ok) throw new Error();
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          const errorMsg = errData.details?.[0]?.message || errData.error || 'Error al registrar';
+          if (errData.details && Array.isArray(errData.details)) {
+            errData.details.forEach(d => {
+              if (d.field === 'km') showFErr('c-km-err', d.message);
+              if (d.field === 'plate') showFErr('c-plate-err', d.message);
+              if (d.field === 'problem') showFErr('c-problem-err', d.message);
+            });
+          }
+          throw new Error(errorMsg);
+        }
         const created = await res.json();
         const trackingInfo = document.getElementById('client-tracking-info');
         trackingInfo.innerHTML = `Guardá estos datos para consultar el estado: <strong>${escapeHtml(created.plate || plate)}</strong> + el teléfono registrado.`;
@@ -2167,7 +2186,7 @@
         loadData(); // refresh background
         showScreen('screen-client-success');
       } catch (err) {
-        showToast('Error al registrar', 'error');
+        showToast(err.message || 'Error al registrar', 'error');
       } finally {
         btn.disabled = false; btn.innerHTML = 'Registrar vehículo ✓';
       }
