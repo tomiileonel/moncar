@@ -1500,7 +1500,7 @@
             <div class="form-group"><label>Fecha de ingreso</label><input type="date" id="c-entry">
               <div class="field-error" id="c-entry-err"></div>
             </div>
-            <div class="form-group"><label>Kilometraje</label><input type="number" id="c-km" placeholder="ej. 45000" min="0"
+            <div class="form-group"><label>Kilometraje</label><input type="number" id="c-km" placeholder="Ej. 45000" min="0"
                 oninput="sanitizePositiveInt(this)">
               <div class="field-error" id="c-km-err"></div>
             </div>
@@ -2148,7 +2148,7 @@
       const type = selType.c, carname = document.getElementById('c-carname').value,
         model = document.getElementById('c-model').value, entry = document.getElementById('c-entry').value,
         plate = document.getElementById('c-plate').value.trim().toUpperCase(),
-        km = document.getElementById('c-km') ? document.getElementById('c-km').value.trim() : '',
+        km = document.getElementById('c-km').value.trim(),
         problem = document.getElementById('c-problem').value.trim();
       let ok = true;
       if (!/^[A-Z0-9 -]{5,12}$/.test(plate)) { showFErr('c-plate-err', 'Ingresá una patente válida'); ok = false; }
@@ -2156,7 +2156,7 @@
       if (!carname) { showFErr('c-brand-err', 'Seleccioná la marca'); ok = false; }
       if (!model) { showFErr('c-year-err', 'Seleccioná el año'); ok = false; }
       if (!entry) { showFErr('c-entry-err', 'Ingresá la fecha'); ok = false; }
-      if (!km || Number(km) < 0) { showFErr('c-km-err', 'El kilometraje es requerido'); ok = false; }
+      if (!km) { showFErr('c-km-err', 'El kilometraje es requerido'); ok = false; }
       if (!problem) { showFErr('c-problem-err', 'Describí el problema'); ok = false; }
       if (!ok) { shake('c-step2'); return; }
       const btn = document.getElementById('c-submit-btn');
@@ -2170,7 +2170,7 @@
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
           const errorMsg = errData.details?.[0]?.message || errData.error || 'Error al registrar';
-          if (errData.details && Array.isArray(errData.details)) {
+          if (Array.isArray(errData.details)) {
             errData.details.forEach(d => {
               if (d.field === 'km') showFErr('c-km-err', d.message);
               if (d.field === 'plate') showFErr('c-plate-err', d.message);
